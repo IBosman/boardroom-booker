@@ -1,2 +1,12 @@
 [
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-21T09:00:00.000Z",
+    "endTime": "2025-11-21T10:00:00.000Z",
+    "room": "room-2",
+    "id": "22dcac18-b0d3-49b0-a311-a5ee5c527521",
+    "createdAt": "2025-11-19T13:11:24.511Z"
+  }
 ]

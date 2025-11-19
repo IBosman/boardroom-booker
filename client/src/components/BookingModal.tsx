@@ -145,9 +145,8 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
                 <SelectValue placeholder="Select a room" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="room-1">Conference Room A</SelectItem>
-                <SelectItem value="room-2">Conference Room B</SelectItem>
-                <SelectItem value="room-3">Executive Boardroom</SelectItem>
+                <SelectItem value="room-1">Boardroom 1</SelectItem>
+                <SelectItem value="room-2">Boardroom 2</SelectItem>
               </SelectContent>
             </Select>
           </div>
