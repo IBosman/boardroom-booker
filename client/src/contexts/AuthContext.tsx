@@ -24,16 +24,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    console.log('Checking auth, token exists:', !!token);
+    
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const { user: userData } = await authApi.getMe();
-        setUser(userData);
+      console.log('Fetching user data...');
+      const response = await authApi.getMe();
+      
+      if (response.error || !response.user) {
+        console.log('Authentication failed:', response.error || 'No user data');
+        throw new Error(response.error || 'Authentication failed');
       }
+      
+      console.log('User authenticated successfully:', response.user);
+      setUser(response.user);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
       setUser(null);
+      // Only redirect if we're not already on the login page
+      if (window.location.pathname !== '/login') {
+        setLocation('/login');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -48,13 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       setIsLoading(true);
-      const { user: userData, token } = await authApi.login(username, password);
+      const response = await authApi.login(username, password);
+      
+      if (response.error || !response.data) {
+        throw new Error(response.error || 'Login failed');
+      }
       
       // Store the token
-      localStorage.setItem('token', token);
+      localStorage.setItem('token', response.data.token);
       
       // Update user state
-      setUser(userData);
+      setUser(response.data.user);
       
       // Redirect to dashboard
       setLocation('/dashboard');

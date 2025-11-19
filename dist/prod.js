@@ -178,26 +178,41 @@ function generateToken(user) {
     { expiresIn: TOKEN_EXPIRY }
   );
 }
-function verifyToken(token) {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) {
-    return res.status(401).json({ error: "Access token is required" });
+    console.log("No token provided in Authorization header");
+    return res.status(401).json({
+      isAuthenticated: false,
+      error: "Access token is required"
+    });
   }
-  const user = verifyToken(token);
-  if (!user) {
-    return res.status(403).json({ error: "Invalid or expired token" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const now = Math.floor(Date.now() / 1e3);
+    if (decoded.exp && decoded.exp < now) {
+      console.log("Token expired");
+      return res.status(401).json({
+        isAuthenticated: false,
+        error: "Token has expired"
+      });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    let errorMessage = "Invalid token";
+    if (error instanceof jwt.TokenExpiredError) {
+      errorMessage = "Token has expired";
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      errorMessage = "Invalid token";
+    }
+    return res.status(401).json({
+      isAuthenticated: false,
+      error: errorMessage
+    });
   }
-  req.user = user;
-  next();
 }
 var USERS_FILE = path2.join(process.cwd(), "data", "users.json");
 if (!fs2.existsSync(USERS_FILE)) {
@@ -327,8 +342,19 @@ async function registerRoutes(app2) {
       res.status(400).json({ error: "Login failed" });
     }
   });
-  router.get("/api/me", authenticateToken, (req, res) => {
-    res.json({ user: req.user });
+  router.get("/api/me", authenticateToken, async (req, res) => {
+    try {
+      res.json({
+        user: req.user,
+        isAuthenticated: true
+      });
+    } catch (error) {
+      console.error("Error in /api/me:", error);
+      res.status(401).json({
+        isAuthenticated: false,
+        error: "Invalid or expired token"
+      });
+    }
   });
   router.get("/api/bookings", async (req, res) => {
     try {

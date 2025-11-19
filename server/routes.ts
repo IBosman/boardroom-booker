@@ -78,9 +78,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Protected routes
-  router.get("/api/me", authenticateToken, (req: Request, res: Response) => {
-    res.json({ user: req.user });
+  // Verify user token and get current user info
+  router.get("/api/me", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      // If we got here, the token is valid (authenticateToken middleware passed)
+      // Just return the user info from the token
+      res.json({ 
+        user: req.user,
+        isAuthenticated: true
+      });
+    } catch (error) {
+      console.error('Error in /api/me:', error);
+      res.status(401).json({ 
+        isAuthenticated: false,
+        error: 'Invalid or expired token' 
+      });
+    }
   });
 
   // Get all bookings (public)

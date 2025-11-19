@@ -2,26 +2,61 @@
 export const API_BASE_URL = ''; // Empty for same-origin requests
 
 // Helper function to handle API requests
-export async function apiRequest<T>(
+export interface ApiResponse<T = any> {
+  data?: T;
+  error?: string;
+  status: number;
+  isAuthenticated?: boolean;
+  user?: any;
+}
+
+export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    credentials: 'include',
+  const token = localStorage.getItem('token');
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    ...options.headers,
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || 'Something went wrong');
+  // Add Authorization header if token exists
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
-  return response.json();
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        error: data.message || 'Something went wrong',
+        status: response.status,
+        isAuthenticated: data.isAuthenticated || false
+      };
+    }
+
+    return {
+      data,
+      status: response.status,
+      isAuthenticated: data.isAuthenticated || false,
+      user: data.user
+    };
+  } catch (error) {
+    console.error('API request failed:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Network error',
+      status: 500,
+      isAuthenticated: false
+    };
+  }
 }
 
 // Auth API functions
@@ -33,7 +68,7 @@ export const authApi = {
     });
   },
   getMe: async () => {
-    return apiRequest<{ user: any }>('/api/me');
+    return apiRequest<{ user: any; isAuthenticated: boolean }>('/api/me');
   },
   logout: async () => {
     // You can implement a logout endpoint on the server if needed

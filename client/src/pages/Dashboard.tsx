@@ -34,11 +34,67 @@ export default function Dashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Check authentication status when component mounts
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.log('No token found in localStorage, redirecting to login');
+        window.location.href = '/login';
+        return;
+      }
+
+      try {
+        console.log('Verifying token with server...');
+        const response = await fetch('/api/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include' // Include cookies in the request
+        });
+
+        const data = await response.json();
+        console.log('Auth response:', { status: response.status, data });
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Token verification failed');
+        }
+
+        if (data.isAuthenticated) {
+          console.log('User authenticated successfully');
+          setIsAuthenticated(true);
+          await fetchBookings();
+        } else {
+          throw new Error('Not authenticated');
+        }
+      } catch (err) {
+        console.error('Authentication error:', err);
+        // Don't remove token immediately, let the user know first
+        setError(err instanceof Error ? err.message : 'Authentication failed');
+        // Give user a chance to see the error before redirecting
+        const timeout = setTimeout(() => {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }, 2000);
+        
+        return () => clearTimeout(timeout);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
     const getAuthHeaders = (): HeadersInit => {
     const token = localStorage.getItem('token');
@@ -56,13 +112,21 @@ export default function Dashboard() {
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
       const response = await fetch('/api/bookings', {
-        headers: getAuthHeaders()
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Handle unauthorized
           localStorage.removeItem('token');
           window.location.href = '/login';
           return;
@@ -80,9 +144,6 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
 
   const handleAddBooking = () => {
     setSelectedBooking(null);
@@ -234,10 +295,10 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading bookings...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-lg">Verifying your session...</p>
         </div>
       </div>
     );

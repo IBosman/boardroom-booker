@@ -17,6 +17,10 @@ type User = {
 type UserPayload = {
   id: string;
   username: string;
+  // JWT standard claims (optional)
+  iat?: number; // Issued At
+  exp?: number; // Expiration Time
+  sub?: string; // Subject
 };
 
 // Login schema
@@ -52,16 +56,45 @@ export function authenticateToken(req: any, res: any, next: Function) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token is required' });
+    console.log('No token provided in Authorization header');
+    return res.status(401).json({ 
+      isAuthenticated: false,
+      error: 'Access token is required' 
+    });
   }
 
-  const user = verifyToken(token);
-  if (!user) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
-  }
+  try {
+    // Verify the token and get the decoded payload
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+    
+    // Check if token is expired
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < now) {
+      console.log('Token expired');
+      return res.status(401).json({ 
+        isAuthenticated: false,
+        error: 'Token has expired' 
+      });
+    }
 
-  req.user = user;
-  next();
+    // Token is valid, attach user to request
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    
+    let errorMessage = 'Invalid token';
+    if (error instanceof jwt.TokenExpiredError) {
+      errorMessage = 'Token has expired';
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      errorMessage = 'Invalid token';
+    }
+    
+    return res.status(401).json({ 
+      isAuthenticated: false,
+      error: errorMessage 
+    });
+  }
 }
 
 // User storage (JSON file)
