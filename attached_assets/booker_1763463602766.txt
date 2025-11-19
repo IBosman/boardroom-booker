@@ -1,0 +1,25 @@
+Make a boardroom booker that will let the company book a boardroom and have it displayed on our site.
+
+
+Main page
+Calendar:
+tabs
+	• Latest Bookings
+	• All bookings
+
+Each booking should show:
+• User
+• Email
+• Cell number
+• Time
+
+When you click a user or booking a popup should open with a date picker
+
+
+Make endpoints:
+• list bookings
+• add bookings
+• delete bookings
+
+
+Use elevenlabs agent to call these endpoints to let the user call a bot to add bookings

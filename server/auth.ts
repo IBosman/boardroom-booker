@@ -1,0 +1,176 @@
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-very-secure-secret-key';
+const TOKEN_EXPIRY = '24h';
+
+// User type for internal storage
+type User = {
+  id: string;
+  username: string;
+  password: string;
+};
+
+// User type for JWT and responses
+type UserPayload = {
+  id: string;
+  username: string;
+};
+
+// Login schema
+export const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+// Generate JWT token
+export function generateToken(user: UserPayload): string {
+  return jwt.sign(
+    { id: user.id, username: user.username },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+}
+
+// Verify JWT token
+export function verifyToken(token: string): UserPayload | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+    return decoded;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Authentication middleware
+export function authenticateToken(req: any, res: any, next: Function) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token is required' });
+  }
+
+  const user = verifyToken(token);
+  if (!user) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+
+  req.user = user;
+  next();
+}
+
+// User storage (JSON file)
+const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+
+// Ensure users file exists
+if (!fs.existsSync(USERS_FILE)) {
+  fs.mkdirSync(path.dirname(USERS_FILE), { recursive: true });
+  fs.writeFileSync(USERS_FILE, '[]', 'utf-8');
+}
+
+// Read users from file
+function readUsers(): User[] {
+  try {
+    const data = fs.readFileSync(USERS_FILE, 'utf-8');
+    // Explicitly type the parsed data as User[]
+    return JSON.parse(data) as User[];
+  } catch (error) {
+    console.error('Error reading users file:', error);
+    return [];
+  }
+}
+
+// Write users to file
+function writeUsers(users: UserPayload[]): void {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error writing users file:', error);
+    throw new Error('Failed to save user data');
+  }
+}
+
+// Create admin user if it doesn't exist
+function initializeAdminUser() {
+  const adminUsername = 'admin';
+  const adminPassword = 'Board$@dm1n';
+  
+  try {
+    const users = readUsers();
+    const adminExists = users.some(user => user.username === adminUsername);
+    
+    if (!adminExists) {
+      const newUser: User = {
+        id: 'admin-' + Date.now().toString(),
+        username: adminUsername,
+        password: adminPassword // In production, this should be hashed
+      };
+      
+      users.push(newUser);
+      writeUsers(users);
+      console.log('Admin user created successfully');
+    }
+  } catch (error) {
+    console.error('Error initializing admin user:', error);
+  }
+}
+
+// Initialize admin user when the server starts
+initializeAdminUser();
+
+// User management
+export const userService = {
+  // Find user by username (internal use only - includes password)
+  findByUsername: (username: string): User | undefined => {
+    const users = readUsers() as User[];
+    return users.find(user => user.username === username);
+  },
+
+  // Get user by username (returns user without password, for external use)
+  getUserByUsername: (username: string): UserPayload | undefined => {
+    const user = userService.findByUsername(username);
+    if (!user) return undefined;
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  },
+
+  // Create new user
+  create: (userData: { username: string; password: string }): UserPayload => {
+    const users = readUsers();
+    
+    // Check if user already exists
+    if (users.some(user => user.username === userData.username)) {
+      throw new Error('Username already exists');
+    }
+
+    // In a real app, you should hash the password before saving
+    // For now, we'll just store it as is (NOT RECOMMENDED FOR PRODUCTION)
+    const newUser: User = {
+      id: Date.now().toString(),
+      username: userData.username,
+      password: userData.password
+    };
+
+    users.push(newUser);
+    writeUsers(users);
+
+    // Return user without password
+    const { password, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  },
+
+  // Validate user credentials
+  validateCredentials: (username: string, password: string): UserPayload | null => {
+    const user = userService.findByUsername(username);
+    if (!user || user.password !== password) return null;
+    
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+};

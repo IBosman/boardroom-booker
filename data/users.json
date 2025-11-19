@@ -1,0 +1,23 @@
+[
+  {
+    "id": "6614f9d7-3912-451e-a504-726905ba8ed5",
+    "username": "admin@example.com",
+    "password": "$2b$10$E9JTkper0CgzHu.TzjPNYeTaNaqXkno69t544GeFanCMmcdoLmYOu",
+    "createdAt": "2025-11-19T11:00:12.135Z"
+  },
+  {
+    "id": "1763551551567",
+    "username": "user@example.com",
+    "password": "securepassword123"
+  },
+  {
+    "id": "admin-1763552100525",
+    "username": "admin@example.com",
+    "password": "Board$@dm1n"
+  },
+  {
+    "id": "admin-1763552316873",
+    "username": "admin",
+    "password": "Board$@dm1n"
+  }
+]

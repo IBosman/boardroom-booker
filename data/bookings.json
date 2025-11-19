@@ -1,0 +1,42 @@
+[
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-24T09:00:00.000Z",
+    "endTime": "2025-11-24T10:00:00.000Z",
+    "room": "room-1",
+    "id": "2e0764ac-89d5-4352-8946-d59c92ce70fb",
+    "createdAt": "2025-11-19T08:45:43.474Z"
+  },
+  {
+    "user": "bob",
+    "email": "bob@job.com",
+    "phone": "085666321",
+    "startTime": "2025-11-25T09:00:00.000Z",
+    "endTime": "2025-11-25T10:00:00.000Z",
+    "room": "room-1",
+    "id": "80b5fe5f-3e1c-47e5-97d6-3c724911449e",
+    "createdAt": "2025-11-19T08:48:02.590Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "068526418",
+    "startTime": "2024-11-19T10:00:00.000Z",
+    "endTime": "2024-11-19T11:00:00.000Z",
+    "room": "room-1",
+    "id": "ae7aaab4-d9a7-42f4-b537-bc684507f63d",
+    "createdAt": "2025-11-19T12:38:50.328Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "068526418",
+    "startTime": "2025-11-19T10:00:00.000Z",
+    "endTime": "2025-11-19T11:00:00.000Z",
+    "room": "room-1",
+    "id": "3144d79b-e914-488c-a915-3b63ba8b49d3",
+    "createdAt": "2025-11-19T12:40:23.981Z"
+  }
+]
