@@ -72,6 +72,16 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
   };
 
   const handleSave = () => {
+    if (date) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const cmpDate = new Date(date);
+      cmpDate.setHours(0,0,0,0);
+      if (cmpDate < today) {
+        setError && setError('You cannot book rooms before today.');
+        return;
+      }
+    }
     const bookingData = {
       user,
       email,
@@ -149,6 +159,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                 mode="single"
                 selected={date}
                 onSelect={setDate}
+                fromDate={new Date(new Date().setHours(0,0,0,0))} // today min
                 className="mx-auto"
                 data-testid="calendar-booking-date"
               />

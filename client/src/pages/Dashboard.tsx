@@ -147,8 +147,18 @@ export default function Dashboard() {
   };
 
 
-  // For UI: if called from calendar, provide date. If called from button click, call without param.
+  // For UI: if called from calendar, provide date. If called from button, call without param.
   const handleAddBooking = (date?: Date) => {
+    if (date) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const cmpDate = new Date(date);
+      cmpDate.setHours(0,0,0,0);
+      if (cmpDate < today) {
+        setModalError("You cannot book rooms before current date");
+        return;
+      }
+    }
     setSelectedBooking(null);
     setPendingDate(date || null);
     setIsAddModalOpen(true);
@@ -365,6 +375,12 @@ export default function Dashboard() {
       <main className="max-w-[1600px] mx-auto px-8 py-6 space-y-8">
         <section>
           <h2 className="text-lg font-semibold mb-4">Calendar View</h2>
+          {modalError === 'You cannot book rooms before current date' && (
+            <div className="mb-4 bg-destructive/10 border border-destructive text-destructive rounded px-3 py-2 flex items-center justify-between max-w-xl">
+              <span>You cannot book rooms before current date</span>
+              <button className="ml-2 text-xs text-destructive" onClick={() => setModalError(null)}>Dismiss</button>
+            </div>
+          )}
           <BookingCalendar 
             bookings={calendarEvents}
             onEventClick={handleEventClick}
