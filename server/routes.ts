@@ -128,6 +128,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime: new Date(result.data.startTime),
         endTime: new Date(result.data.endTime)
       };
+      // Prevent bookings before today
+      const now = new Date();
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const reqStart = new Date(bookingData.startTime);
+      const reqStartUTC = new Date(Date.UTC(reqStart.getUTCFullYear(), reqStart.getUTCMonth(), reqStart.getUTCDate()));
+      if (reqStartUTC < todayUTC) {
+        return res.status(400).json({ error: 'You cannot book rooms before current date' });
+      }
+      // Prevent start time in the past (for today only), using UTC
+      if (
+        reqStartUTC.getTime() === todayUTC.getTime() &&
+        reqStart.getTime() < now.getTime()
+      ) {
+        return res.status(400).json({ error: 'You cannot book rooms before the current time' });
+      }
 
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);

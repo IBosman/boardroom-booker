@@ -73,13 +73,23 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
 
   const handleSave = () => {
     if (date) {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const cmpDate = new Date(date);
-      cmpDate.setHours(0,0,0,0);
-      if (cmpDate < today) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const selDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      if (selDate < today) {
         setError && setError('You cannot book rooms before today.');
         return;
+      }
+      // Block start times in the past for today
+      if (selDate.getTime() === today.getTime()) {
+        // Compose start datetime string for today + startTime
+        const [sh, sm] = startTime.split(":").map(Number);
+        const userStart = new Date(selDate);
+        userStart.setHours(sh, sm, 0, 0);
+        if (userStart.getTime() < now.getTime()) {
+          setError && setError('You cannot book rooms before the current time.');
+          return;
+        }
       }
     }
     const bookingData = {
@@ -176,6 +186,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                 onChange={(e) => setStartTime(e.target.value)}
                 className="mt-1"
                 data-testid="input-start-time"
+                min={date && new Date(date).toDateString() === new Date().toDateString() ? (() => { const now = new Date(); return `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`; })() : undefined}
               />
             </div>
             <div>

@@ -423,6 +423,16 @@ async function registerRoutes(app2) {
         startTime: new Date(result.data.startTime),
         endTime: new Date(result.data.endTime)
       };
+      const now = /* @__PURE__ */ new Date();
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const reqStart = new Date(bookingData.startTime);
+      const reqStartUTC = new Date(Date.UTC(reqStart.getUTCFullYear(), reqStart.getUTCMonth(), reqStart.getUTCDate()));
+      if (reqStartUTC < todayUTC) {
+        return res.status(400).json({ error: "You cannot book rooms before current date" });
+      }
+      if (reqStartUTC.getTime() === todayUTC.getTime() && reqStart.getTime() < now.getTime()) {
+        return res.status(400).json({ error: "You cannot book rooms before the current time" });
+      }
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);
     } catch (error) {
