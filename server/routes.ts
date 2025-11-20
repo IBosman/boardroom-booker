@@ -133,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(booking);
     } catch (error) {
       console.error("Error creating booking:", error);
-      res.status(400).json({ error: "Invalid booking data" });
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid booking data' });
     }
   });
 

@@ -3,10 +3,40 @@
     "user": "imraan",
     "email": "imraan@example.com",
     "phone": "0685264318",
-    "startTime": "2025-11-21T09:00:00.000Z",
-    "endTime": "2025-11-21T10:00:00.000Z",
+    "startTime": "2025-11-21T10:00:00.000Z",
+    "endTime": "2025-11-21T12:00:00.000Z",
     "room": "room-2",
     "id": "22dcac18-b0d3-49b0-a311-a5ee5c527521",
     "createdAt": "2025-11-19T13:11:24.511Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-20T10:00:00.000Z",
+    "endTime": "2025-11-20T12:00:00.000Z",
+    "room": "room-2",
+    "id": "265432fc-2aae-403f-9df4-32566e0c6038",
+    "createdAt": "2025-11-20T10:19:49.606Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "06848274",
+    "startTime": "2025-11-21T12:30:00.000Z",
+    "endTime": "2025-11-21T13:00:00.000Z",
+    "room": "room-2",
+    "id": "8f9a68c5-b278-47f9-abb6-435c5d189d80",
+    "createdAt": "2025-11-20T10:33:21.876Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-24T14:00:00.000Z",
+    "endTime": "2025-11-24T15:00:00.000Z",
+    "room": "room-1",
+    "id": "06a96ba6-c37a-4926-8506-b175b01daa64",
+    "createdAt": "2025-11-20T10:36:34.622Z"
   }
 ]

@@ -35,7 +35,9 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // global error (session/fetching)
+  const [modalError, setModalError] = useState<string | null>(null); // only for BookingModal (create/save)
+  const [pendingDate, setPendingDate] = useState<Date | null>(null);
 
   const today = new Date();
   const tomorrow = new Date(today);
@@ -145,8 +147,10 @@ export default function Dashboard() {
   };
 
 
-  const handleAddBooking = () => {
+  // For UI: if called from calendar, provide date. If called from button click, call without param.
+  const handleAddBooking = (date?: Date) => {
     setSelectedBooking(null);
+    setPendingDate(date || null);
     setIsAddModalOpen(true);
   };
 
@@ -183,17 +187,37 @@ export default function Dashboard() {
         headers: getAuthHeaders(),
         body: JSON.stringify(formattedData),
       });
-
       if (!response.ok) {
-        throw new Error('Failed to create booking');
+        let errMsg = 'Failed to create booking';
+        try {
+          const data = await response.json();
+          let bookedMsg = 'This room is already booked for the selected time period';
+          if (data) {
+            let foundBookedOverlap = false;
+            if (data.error && data.error.toLowerCase().includes('already booked for the selected time period')) {
+              foundBookedOverlap = true;
+            }
+            if (Array.isArray(data.details) && data.details.some((d: any) => d.message && d.message.toLowerCase().includes('already booked for the selected time period'))) {
+              foundBookedOverlap = true;
+            }
+            if (foundBookedOverlap) {
+              errMsg = bookedMsg;
+            } else if (data.error && Array.isArray(data.details)) {
+              errMsg = data.details.map((d: any) => d.message).join('\n');
+            } else if (data.error) {
+              errMsg = data.error;
+            }
+          }
+          setModalError(errMsg);
+          return; // DO NOT close modal
+        } catch (e) {}
       }
-
-      // Refresh the bookings list
       await fetchBookings();
-      setIsAddModalOpen(false);
+      setIsAddModalOpen(false); // Only close if all good
+      setModalError(null);
     } catch (err) {
       console.error('Error creating booking:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create booking');
+      setModalError(err instanceof Error ? err.message : 'Failed to create booking');
     }
   };
 
@@ -304,7 +328,7 @@ export default function Dashboard() {
     );
   }
 
-  if (error) {
+  if (error && !(isAddModalOpen || isModalOpen)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -330,7 +354,7 @@ export default function Dashboard() {
               <h1 className="text-2xl font-semibold" data-testid="text-page-title">Boardroom Booking</h1>
               <p className="text-sm text-muted-foreground mt-1">Manage and view all boardroom bookings</p>
             </div>
-            <Button onClick={handleAddBooking} data-testid="button-add-booking">
+            <Button onClick={() => handleAddBooking()} data-testid="button-add-booking">
               <Plus className="h-4 w-4 mr-2" />
               Add Booking
             </Button>
@@ -344,6 +368,7 @@ export default function Dashboard() {
           <BookingCalendar 
             bookings={calendarEvents}
             onEventClick={handleEventClick}
+            onDateClick={handleAddBooking}
           />
         </section>
 
@@ -396,6 +421,8 @@ export default function Dashboard() {
           onClose={handleCloseModal}
           booking={selectedBooking}
           onSave={handleUpdateBooking}
+          error={modalError}
+          setError={setModalError}
         />
       )}
       {isAddModalOpen && (
@@ -403,6 +430,9 @@ export default function Dashboard() {
           open={isAddModalOpen}
           onClose={handleCloseModal}
           onSave={handleSaveBooking}
+          error={modalError}
+          setError={setModalError}
+          defaultDate={pendingDate}
         />
       )}
     </div>

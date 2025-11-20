@@ -4,8 +4,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface BookingModalProps {
   open: boolean;
@@ -20,11 +21,14 @@ interface BookingModalProps {
     room: string;
   } | null;
   onSave?: (data: any) => void;
+  error?: string | null;
+  setError?: (err: string | null) => void;
+  defaultDate?: Date | null;
 }
 
-export default function BookingModal({ open, onClose, booking, onSave }: BookingModalProps) {
+export default function BookingModal({ open, onClose, booking, onSave, error, setError, defaultDate = null }: BookingModalProps) {
   const [date, setDate] = useState<Date | undefined>(
-    booking ? new Date(booking.startTime) : new Date()
+    booking ? new Date(booking.startTime) : (defaultDate || new Date())
   );
   const [user, setUser] = useState(booking?.user || '');
   const [email, setEmail] = useState(booking?.email || '');
@@ -35,7 +39,37 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
   const [endTime, setEndTime] = useState(
     booking ? format(new Date(booking.endTime), 'HH:mm') : '10:00'
   );
+  // Track if user has changed end time after modal opens
+  const [isEndTimeDirty, setIsEndTimeDirty] = useState(false);
   const [room, setRoom] = useState(booking?.room || 'room-1');
+
+  const SAVE_ERR_MSG = 'This room is already booked for the selected time period';
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const saveBtnRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (error === SAVE_ERR_MSG) setPopoverOpen(true);
+    else setPopoverOpen(false);
+  }, [error]);
+  // Whenever we open modal (create), reset isEndTimeDirty to false
+  useEffect(() => {
+    if (!open) return;
+    if (!booking && defaultDate) setDate(defaultDate);
+    setIsEndTimeDirty(false);
+  }, [open, booking, defaultDate]);
+  // Sync endTime when startTime changes (for new bookings or when user hasn't manually overridden)
+  useEffect(() => {
+    if (booking) return;
+    if (!isEndTimeDirty) {
+      const [startH, startM] = startTime.split(":").map(Number);
+      const padded = (n: number) => String(n).padStart(2, '0');
+      const newEndHour = (startH + 1) % 24;
+      setEndTime(`${padded(newEndHour)}:${padded(startM)}`);
+    }
+  }, [startTime, booking, isEndTimeDirty]);
+  const handlePopoverClose = () => {
+    setPopoverOpen(false);
+    setError && setError(null);
+  };
 
   const handleSave = () => {
     const bookingData = {
@@ -49,7 +83,6 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
     };
     console.log('Saving booking:', bookingData);
     onSave?.(bookingData);
-    onClose();
   };
 
   return (
@@ -59,6 +92,15 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
           <DialogTitle>{booking ? 'Edit Booking' : 'New Booking'}</DialogTitle>
         </DialogHeader>
         
+        {error && error !== SAVE_ERR_MSG && (
+          <div className="bg-destructive/10 border border-destructive text-destructive text-sm rounded px-3 py-2 mb-4 flex items-center justify-between">
+            <span>{error}</span>
+            {setError && (
+              <button onClick={() => setError(null)} className="text-destructive text-xs ml-3">Dismiss</button>
+            )}
+          </div>
+        )}
+
         <div className="space-y-6">
           <div className="space-y-4">
             <div>
@@ -131,7 +173,7 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
                 id="end-time"
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => { setEndTime(e.target.value); setIsEndTimeDirty(true); }}
                 className="mt-1"
                 data-testid="input-end-time"
               />
@@ -152,17 +194,25 @@ export default function BookingModal({ open, onClose, booking, onSave }: Booking
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            data-testid="button-cancel"
-          >
-            Cancel
-          </Button>
+        <DialogFooter className="gap-2" style={{ position: 'relative' }}>
+          <Popover open={popoverOpen} onOpenChange={(open) => { if (!open) handlePopoverClose(); }}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                data-testid="button-cancel"
+              >
+                Cancel
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="center" sideOffset={8} className="bg-destructive text-destructive-foreground">
+              {SAVE_ERR_MSG}
+            </PopoverContent>
+          </Popover>
           <Button 
             onClick={handleSave}
             data-testid="button-save"
+            ref={saveBtnRef}
           >
             Save Changes
           </Button>

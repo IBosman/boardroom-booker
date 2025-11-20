@@ -80,11 +80,33 @@ export class JsonStorage {
     await fs.writeFile(STORAGE_FILE, JSON.stringify(bookings, null, 2));
   }
 
+  private hasTimeConflict(room: string, startTime: Date, endTime: Date, excludeBookingId?: string): boolean {
+    // Convert to timestamps for easier comparison
+    const newStart = startTime.getTime();
+    const newEnd = endTime.getTime();
+
+    // Check all existing bookings for the same room
+    for (const [id, booking] of this.bookings.entries()) {
+      // Skip the booking we're updating (if any)
+      if (id === excludeBookingId) continue;
+      
+      // Only check bookings for the same room
+      if (booking.room === room) {
+        const existingStart = booking.startTime.getTime();
+        const existingEnd = booking.endTime.getTime();
+        
+        // Check for time overlap
+        if (newStart < existingEnd && newEnd > existingStart) {
+          return true; // Conflict found
+        }
+      }
+    }
+    
+    return false; // No conflicts
+  }
+
   async createBooking(booking: InsertBooking): Promise<Booking> {
     if (!this.initialized) await this.initialize();
-    
-    const id = randomUUID();
-    const now = new Date();
     
     // Ensure we have proper Date objects
     const startTime = booking.startTime instanceof Date 
@@ -95,6 +117,18 @@ export class JsonStorage {
       ? new Date(booking.endTime) 
       : new Date(booking.endTime);
 
+    // Validate time range
+    if (startTime >= endTime) {
+      throw new Error('End time must be after start time');
+    }
+
+    // Check for time conflicts
+    if (this.hasTimeConflict(booking.room, startTime, endTime)) {
+      throw new Error('This room is already booked for the selected time period');
+    }
+
+    const id = randomUUID();
+    const now = new Date();
     const newBooking: Booking = {
       ...booking,
       id,
@@ -145,16 +179,41 @@ export class JsonStorage {
     };
 
     // Handle date updates with proper type conversion
+    let startTime = booking.startTime;
+    let endTime = booking.endTime;
+    let datesUpdated = false;
+
     if (updates.startTime) {
-      updatedBooking.startTime = updates.startTime instanceof Date 
-        ? new Date(updates.startTime) 
+      startTime = updates.startTime instanceof Date 
+        ? new Date(updates.startTime)
         : new Date(updates.startTime);
+      updatedBooking.startTime = startTime;
+      datesUpdated = true;
     }
     
     if (updates.endTime) {
-      updatedBooking.endTime = updates.endTime instanceof Date 
-        ? new Date(updates.endTime) 
+      endTime = updates.endTime instanceof Date 
+        ? new Date(updates.endTime)
         : new Date(updates.endTime);
+      updatedBooking.endTime = endTime;
+      datesUpdated = true;
+    }
+
+    // Validate time range if dates were updated
+    if (datesUpdated) {
+      if (startTime >= endTime) {
+        throw new Error('End time must be after start time');
+      }
+
+      // Check for time conflicts, excluding the current booking
+      if (this.hasTimeConflict(
+        updatedBooking.room,
+        startTime,
+        endTime,
+        id // Exclude current booking from conflict check
+      )) {
+        throw new Error('This room is already booked for the selected time period');
+      }
     }
 
     this.bookings.set(id, updatedBooking);

@@ -17,9 +17,10 @@ interface Booking {
 interface BookingCalendarProps {
   bookings: Booking[];
   onEventClick?: (booking: Booking) => void;
+  onDateClick?: (date: Date) => void;
 }
 
-export default function BookingCalendar({ bookings, onEventClick }: BookingCalendarProps) {
+export default function BookingCalendar({ bookings, onEventClick, onDateClick }: BookingCalendarProps) {
   return (
     <Card className="p-6">
       <FullCalendar
@@ -39,6 +40,7 @@ export default function BookingCalendar({ bookings, onEventClick }: BookingCalen
             onEventClick(booking);
           }
         }}
+        dateClick={onDateClick ? (info) => onDateClick(info.date) : undefined}
         height="auto"
         eventClassNames="cursor-pointer"
         slotMinTime="06:00:00"

@@ -60,12 +60,33 @@ var JsonStorage = class {
     });
     await fs.writeFile(STORAGE_FILE, JSON.stringify(bookings, null, 2));
   }
+  hasTimeConflict(room, startTime, endTime, excludeBookingId) {
+    const newStart = startTime.getTime();
+    const newEnd = endTime.getTime();
+    for (const [id, booking] of this.bookings.entries()) {
+      if (id === excludeBookingId) continue;
+      if (booking.room === room) {
+        const existingStart = booking.startTime.getTime();
+        const existingEnd = booking.endTime.getTime();
+        if (newStart < existingEnd && newEnd > existingStart) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   async createBooking(booking) {
     if (!this.initialized) await this.initialize();
-    const id = randomUUID();
-    const now = /* @__PURE__ */ new Date();
     const startTime = booking.startTime instanceof Date ? new Date(booking.startTime) : new Date(booking.startTime);
     const endTime = booking.endTime instanceof Date ? new Date(booking.endTime) : new Date(booking.endTime);
+    if (startTime >= endTime) {
+      throw new Error("End time must be after start time");
+    }
+    if (this.hasTimeConflict(booking.room, startTime, endTime)) {
+      throw new Error("This room is already booked for the selected time period");
+    }
+    const id = randomUUID();
+    const now = /* @__PURE__ */ new Date();
     const newBooking = {
       ...booking,
       id,
@@ -108,11 +129,32 @@ var JsonStorage = class {
       createdAt: booking.createdAt
       // Preserve original creation date
     };
+    let startTime = booking.startTime;
+    let endTime = booking.endTime;
+    let datesUpdated = false;
     if (updates.startTime) {
-      updatedBooking.startTime = updates.startTime instanceof Date ? new Date(updates.startTime) : new Date(updates.startTime);
+      startTime = updates.startTime instanceof Date ? new Date(updates.startTime) : new Date(updates.startTime);
+      updatedBooking.startTime = startTime;
+      datesUpdated = true;
     }
     if (updates.endTime) {
-      updatedBooking.endTime = updates.endTime instanceof Date ? new Date(updates.endTime) : new Date(updates.endTime);
+      endTime = updates.endTime instanceof Date ? new Date(updates.endTime) : new Date(updates.endTime);
+      updatedBooking.endTime = endTime;
+      datesUpdated = true;
+    }
+    if (datesUpdated) {
+      if (startTime >= endTime) {
+        throw new Error("End time must be after start time");
+      }
+      if (this.hasTimeConflict(
+        updatedBooking.room,
+        startTime,
+        endTime,
+        id
+        // Exclude current booking from conflict check
+      )) {
+        throw new Error("This room is already booked for the selected time period");
+      }
     }
     this.bookings.set(id, updatedBooking);
     await this.saveToDisk();
@@ -385,7 +427,7 @@ async function registerRoutes(app2) {
       res.status(201).json(booking);
     } catch (error) {
       console.error("Error creating booking:", error);
-      res.status(400).json({ error: "Invalid booking data" });
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid booking data" });
     }
   });
   router.get("/api/bookings/:id", async (req, res) => {
