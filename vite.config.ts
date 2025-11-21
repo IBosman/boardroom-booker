@@ -30,6 +30,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      external: ['@mui/x-date-pickers/LocalizationProvider', '@mui/x-date-pickers/AdapterDayjs', '@mui/x-date-pickers/TimeClock'],
+    },
+  },
+  optimizeDeps: {
+    include: ['@mui/x-date-pickers', '@mui/material', '@emotion/react', '@emotion/styled'],
   },
   server: {
     fs: {
