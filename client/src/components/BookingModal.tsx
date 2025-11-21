@@ -220,7 +220,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                           }
                         }}
                         ampm={false}
-                        minutesStep={30}
+                        minutesStep={5}
                         views={['hours', 'minutes']}
                         className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
                       />
@@ -266,7 +266,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                           }
                         }}
                         ampm={false}
-                        minutesStep={30}
+                        minutesStep={5}
                         views={['hours', 'minutes']}
                         className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
                       />
