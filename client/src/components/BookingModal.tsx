@@ -5,8 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useRef, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, parse, setHours, setMinutes, addHours, isAfter, isBefore, set } from 'date-fns';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { TimeClock } from '@mui/x-date-pickers/TimeClock';
+import dayjs, { Dayjs } from 'dayjs';
 
 interface BookingModalProps {
   open: boolean;
@@ -33,12 +39,14 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
   const [user, setUser] = useState(booking?.user || '');
   const [email, setEmail] = useState(booking?.email || '');
   const [phone, setPhone] = useState(booking?.phone || '');
-  const [startTime, setStartTime] = useState(
-    booking ? format(new Date(booking.startTime), 'HH:mm') : '09:00'
+  const [startTime, setStartTime] = useState<Date>(
+    booking ? new Date(booking.startTime) : setMinutes(setHours(new Date(), 9), 0)
   );
-  const [endTime, setEndTime] = useState(
-    booking ? format(new Date(booking.endTime), 'HH:mm') : '10:00'
+  const [endTime, setEndTime] = useState<Date>(
+    booking ? new Date(booking.endTime) : setMinutes(setHours(new Date(), 10), 0)
   );
+  const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
+  const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
   // Track if user has changed end time after modal opens
   const [isEndTimeDirty, setIsEndTimeDirty] = useState(false);
   const [room, setRoom] = useState(booking?.room || 'room-1');
@@ -60,10 +68,8 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
   useEffect(() => {
     if (booking) return;
     if (!isEndTimeDirty) {
-      const [startH, startM] = startTime.split(":").map(Number);
-      const padded = (n: number) => String(n).padStart(2, '0');
-      const newEndHour = (startH + 1) % 24;
-      setEndTime(`${padded(newEndHour)}:${padded(startM)}`);
+      const newEndTime = addHours(startTime, 1);
+      setEndTime(newEndTime);
     }
   }, [startTime, booking, isEndTimeDirty]);
   const handlePopoverClose = () => {
@@ -72,6 +78,16 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
   };
 
   const handleSave = () => {
+    // Validate required fields
+    if (!email.trim()) {
+      setError && setError('Email is required');
+      return;
+    }
+    if (!phone.trim()) {
+      setError && setError('Phone number is required');
+      return;
+    }
+    
     if (date) {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -82,10 +98,8 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
       }
       // Block start times in the past for today
       if (selDate.getTime() === today.getTime()) {
-        // Compose start datetime string for today + startTime
-        const [sh, sm] = startTime.split(":").map(Number);
         const userStart = new Date(selDate);
-        userStart.setHours(sh, sm, 0, 0);
+        userStart.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
         if (userStart.getTime() < now.getTime()) {
           setError && setError('You cannot book rooms before the current time.');
           return;
@@ -97,8 +111,8 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
       email,
       phone,
       date,
-      startTime,
-      endTime,
+      startTime: format(startTime, 'HH:mm'),
+      endTime: format(endTime, 'HH:mm'),
       room
     };
     console.log('Saving booking:', bookingData);
@@ -145,6 +159,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                   className="mt-1"
                   data-testid="input-email"
                   placeholder="email@example.com"
+                  required
                 />
               </div>
               <div>
@@ -157,6 +172,7 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
                   className="mt-1"
                   data-testid="input-phone"
                   placeholder="+1 (___) ___-____"
+                  required
                 />
               </div>
             </div>
@@ -178,27 +194,95 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="start-time" className="text-sm font-medium">Start Time</Label>
-              <Input
-                id="start-time"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="mt-1"
-                data-testid="input-start-time"
-                min={date && new Date(date).toDateString() === new Date().toDateString() ? (() => { const now = new Date(); return `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`; })() : undefined}
-              />
+              <Label htmlFor="start-time" className="text-sm font-medium block mb-1">Start Time</Label>
+              <Popover open={isStartTimeOpen} onOpenChange={setIsStartTimeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startTime && "text-muted-foreground"
+                    )}
+                    data-testid="input-start-time"
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    {format(startTime, 'h:mm a')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <div className="p-4">
+                      <TimeClock
+                        value={dayjs(startTime)}
+                        onChange={(newTime) => {
+                          if (newTime) {
+                            setStartTime(newTime.toDate());
+                          }
+                        }}
+                        ampm={false}
+                        minutesStep={30}
+                        views={['hours', 'minutes']}
+                        className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
+                      />
+                      <div className="flex justify-between mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsStartTimeOpen(false)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+                    </div>
+                  </LocalizationProvider>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
-              <Label htmlFor="end-time" className="text-sm font-medium">End Time</Label>
-              <Input
-                id="end-time"
-                type="time"
-                value={endTime}
-                onChange={(e) => { setEndTime(e.target.value); setIsEndTimeDirty(true); }}
-                className="mt-1"
-                data-testid="input-end-time"
-              />
+              <Label htmlFor="end-time" className="text-sm font-medium block mb-1">End Time</Label>
+              <Popover open={isEndTimeOpen} onOpenChange={setIsEndTimeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endTime && "text-muted-foreground"
+                    )}
+                    data-testid="input-end-time"
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    {format(endTime, 'h:mm a')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <div className="p-4">
+                      <TimeClock
+                        value={dayjs(endTime)}
+                        onChange={(newTime) => {
+                          if (newTime) {
+                            setEndTime(newTime.toDate());
+                            setIsEndTimeDirty(true);
+                          }
+                        }}
+                        ampm={false}
+                        minutesStep={30}
+                        views={['hours', 'minutes']}
+                        className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
+                      />
+                      <div className="flex justify-between mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEndTimeOpen(false)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+                    </div>
+                  </LocalizationProvider>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

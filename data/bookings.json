@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "user": "imraan",
+    "email": "imraan.bosman@habarimedia.com",
+    "phone": "068264318",
+    "startTime": "2025-11-24T14:00:00.000Z",
+    "endTime": "2025-11-24T16:00:00.000Z",
+    "room": "room-1",
+    "id": "d0137978-6198-4ee8-9e71-8502c8a55408",
+    "createdAt": "2025-11-20T13:28:02.499Z"
+  }
+]
