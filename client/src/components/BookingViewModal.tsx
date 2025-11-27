@@ -204,12 +204,12 @@ export default function BookingViewModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Bookings for {format(date, 'EEEE, MMMM d, yyyy')}</DialogTitle>
         </DialogHeader>
         
-        <div className="max-h-[500px] overflow-y-auto pr-2">
+        <div className="flex-1 overflow-y-auto pr-2">
           {timeSlotGroups.map((group, groupIndex) => (
             <div key={groupIndex} className="mb-4">
               <div className="space-y-2">

@@ -1,20 +1,10 @@
 [
   {
-    "id": "6614f9d7-3912-451e-a504-726905ba8ed5",
-    "username": "admin@example.com",
-    "password": "$2b$10$E9JTkper0CgzHu.TzjPNYeTaNaqXkno69t544GeFanCMmcdoLmYOu",
-    "createdAt": "2025-11-19T11:00:12.135Z"
-  },
-  {
-    "id": "admin-1763552316873",
+    "id": "admin-1764234989809",
     "username": "admin",
-    "password": "Board$@dm1n"
-  },
-  {
-    "id": "1764233634847",
-    "username": "imraan",
-    "email": "imraan.bosman@habarimedia.com",
-    "phoneNumber": "0685264318",
-    "password": "imraanspassword"
+    "email": "admin@example.com",
+    "phoneNumber": "+1234567890",
+    "password": "Board$@dm1n",
+    "isAdmin": true
   }
 ]
