@@ -366,8 +366,8 @@ var validateDate = (date) => {
 };
 var createBookingSchema = z2.object({
   user: z2.string().min(1, "User name is required"),
-  email: z2.string().email("Invalid email address"),
-  phone: z2.string().min(1, "Phone number is required"),
+  email: z2.string().email("Invalid email address").or(z2.literal("")),
+  phone: z2.string().min(0),
   startTime: z2.string().refine(validateDate, { message: "Invalid start date/time format" }).transform((str) => new Date(str).toISOString()),
   endTime: z2.string().refine(validateDate, { message: "Invalid end date/time format" }).transform((str) => new Date(str).toISOString()),
   room: z2.string().min(1, "Room is required")

@@ -6,32 +6,8 @@
     "createdAt": "2025-11-19T11:00:12.135Z"
   },
   {
-    "id": "1763551551567",
-    "username": "user@example.com",
-    "password": "securepassword123"
-  },
-  {
-    "id": "admin-1763552100525",
-    "username": "admin@example.com",
-    "password": "Board$@dm1n"
-  },
-  {
     "id": "admin-1763552316873",
     "username": "admin",
     "password": "Board$@dm1n"
-  },
-  {
-    "id": "1764228818550",
-    "username": "bob",
-    "email": "bob@example.com",
-    "phoneNumber": "06852681873",
-    "password": "bobspassword"
-  },
-  {
-    "id": "1764228854258",
-    "username": "smith",
-    "email": "smith@example.com",
-    "phoneNumber": "0685264318",
-    "password": "smithspassword"
   }
 ]

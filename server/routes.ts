@@ -14,8 +14,8 @@ const validateDate = (date: string): boolean => {
 
 const createBookingSchema = z.object({
   user: z.string().min(1, "User name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(1, "Phone number is required"),
+  email: z.string().email("Invalid email address").or(z.literal('')),
+  phone: z.string().min(0),
   startTime: z.string()
     .refine(validateDate, { message: "Invalid start date/time format" })
     .transform(str => new Date(str).toISOString()),

@@ -266,14 +266,26 @@ export default function BookingModal({
         endTimeValue: formatToISO(endDate)
       });
 
+      // Ensure we're using the current user's details
+      const currentUserEmail = currentUser?.email || email || '';
+      const currentUserPhone = currentUser?.phoneNumber || phone || '';
+      
       const bookingData = {
-        user,
-        email,
-        phone,
+        user: currentUser?.username || user,
+        email: currentUserEmail,
+        phone: currentUserPhone,
         startTime: formatToISO(startDate),
         endTime: formatToISO(endDate),
         room
       };
+      
+      console.log('Booking data with user details:', {
+        ...bookingData,
+        // Hide sensitive data in logs
+        email: currentUserEmail ? '[REDACTED]' : 'MISSING',
+        phone: currentUserPhone ? '[REDACTED]' : 'MISSING',
+        user: bookingData.user || 'MISSING'
+      });
       
       // Add detailed validation before saving
       console.log('=== DEBUG: Date Validation ===');

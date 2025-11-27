@@ -147,23 +147,59 @@ export default function BookingViewModal({
     });
   };
 
-  // Group time slots by hour and sort by room
-  const timeSlotsByHour = Array.from({ length: 11 }, (_, i) => {
-    const hour = i + 8; // 8 AM to 6 PM
-    const hourStart = new Date(date);
-    hourStart.setHours(hour, 0, 0, 0);
-    
-    const formattedHour = format(hourStart, 'h a');
-    
-    // Get all slots for this hour and sort by room
-    const slotsForHour = timeSlots
-      .filter(slot => new Date(slot.start).getHours() === hour)
-      .sort((a, b) => (a.room || '').localeCompare(b.room || ''));
+  // Group time slots by time range
+  const groupedTimeSlots = timeSlots.reduce((groups, slot) => {
+    const timeRange = `${formatTime(slot.start)} - ${formatTime(slot.end)}`;
+    if (!groups[timeRange]) {
+      groups[timeRange] = [];
+    }
+    groups[timeRange].push(slot);
+    return groups;
+  }, {} as Record<string, TimeSlot[]>);
+
+  // Get all unique rooms for reference
+  const allRooms = Array.from(new Set(timeSlots.map(slot => slot.room).filter((room): room is string => !!room))).sort();
+
+  // Convert to array and sort by start time
+  const timeSlotGroups = Object.entries(groupedTimeSlots).map(([timeRange, slots]) => {
+    // Create a map of room to slot for easier lookup
+    const slotByRoom = new Map<string, TimeSlot>();
+    slots.forEach(slot => {
+      if (slot.room) {
+        slotByRoom.set(slot.room, slot);
+      }
+    });
+
+    // For each room, ensure we have either a booked or available slot
+    const allRoomSlots = allRooms.map(room => {
+      const existingSlot = slotByRoom.get(room);
+      if (existingSlot) {
+        return existingSlot;
+      }
+      // Create a new available slot for this room if it doesn't exist
+      return {
+        start: slots[0]?.start || new Date().toISOString(),
+        end: slots[0]?.end || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        isBooked: false,
+        room
+      } as TimeSlot;
+    });
 
     return {
-      hour: formattedHour,
-      slots: slotsForHour
+      timeRange,
+      slots: allRoomSlots.sort((a, b) => {
+        // Sort booked slots first, then by room
+        if (a.isBooked !== b.isBooked) {
+          return a.isBooked ? -1 : 1;
+        }
+        return (a.room || '').localeCompare(b.room || '');
+      })
     };
+  }).sort((a, b) => {
+    // Sort by start time
+    const aStart = new Date(a.slots[0].start);
+    const bStart = new Date(b.slots[0].start);
+    return aStart.getTime() - bStart.getTime();
   });
 
   return (
@@ -174,50 +210,42 @@ export default function BookingViewModal({
         </DialogHeader>
         
         <div className="max-h-[500px] overflow-y-auto pr-2">
-          {timeSlotsByHour.map((hourGroup, index) => (
-            <div key={index} className="mb-4">
-              {/* <h3 className="text-sm font-medium text-gray-500 mb-2">{hourGroup.hour}</h3> */}
+          {timeSlotGroups.map((group, groupIndex) => (
+            <div key={groupIndex} className="mb-4">
               <div className="space-y-2">
-                {hourGroup.slots.map((slot, slotIndex) => (
-                  <div 
-                    key={slotIndex}
-                    className={`p-3 rounded-md border ${
-                      slot.isBooked 
-                        ? 'bg-gray-50 border-gray-200' 
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {formatTime(slot.start)} - {formatTime(slot.end)}
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {slot.isBooked ? (
-                            <>
-                              <div>Booked by {slot.booking?.user}</div>
-                              <div className="text-xs text-gray-500">Room: {slot.room}</div>
-                            </>
-                          ) : (
-                            <div className="text-green-600">
-                              Available in {slot.room}
-                            </div>
-                          )}
-                        </div>
+                <div className="p-3 rounded-md border border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {group.timeRange}
                       </div>
-                      {!slot.isBooked && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="ml-2"
-                          onClick={(e) => handleBookNow(e, slot)}
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Book
-                        </Button>
-                      )}
+                      <div className="text-sm text-gray-600 mt-1">
+                        {group.slots.map((slot, slotIndex) => (
+                          <div key={`${slot.room}-${slotIndex}`} className="mb-2">
+                            {slot.isBooked ? (
+                              <>
+                                <div>Booked by {slot.booking?.user}</div>
+                                <div className="text-xs text-gray-500">Room: {slot.room}</div>
+                              </>
+                            ) : (
+                              <div className="text-green-600">{slot.room}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                    {group.slots.some(slot => !slot.isBooked) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="ml-2"
+                        onClick={(e) => handleBookNow(e, group.slots.find(slot => !slot.isBooked)!)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Book
+                      </Button>
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           ))}
