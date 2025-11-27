@@ -19,5 +19,19 @@
     "id": "admin-1763552316873",
     "username": "admin",
     "password": "Board$@dm1n"
+  },
+  {
+    "id": "1764228818550",
+    "username": "bob",
+    "email": "bob@example.com",
+    "phoneNumber": "06852681873",
+    "password": "bobspassword"
+  },
+  {
+    "id": "1764228854258",
+    "username": "smith",
+    "email": "smith@example.com",
+    "phoneNumber": "0685264318",
+    "password": "smithspassword"
   }
 ]

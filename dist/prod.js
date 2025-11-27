@@ -288,6 +288,8 @@ function initializeAdminUser() {
       const newUser = {
         id: "admin-" + Date.now().toString(),
         username: adminUsername,
+        email: "admin@example.com",
+        phoneNumber: "+1234567890",
         password: adminPassword
         // In production, this should be hashed
       };
@@ -319,9 +321,14 @@ var userService = {
     if (users.some((user) => user.username === userData.username)) {
       throw new Error("Username already exists");
     }
+    if (users.some((user) => user.email === userData.email)) {
+      throw new Error("Email already in use");
+    }
     const newUser = {
       id: Date.now().toString(),
       username: userData.username,
+      email: userData.email,
+      phoneNumber: userData.phoneNumber,
       password: userData.password
     };
     users.push(newUser);
@@ -358,15 +365,33 @@ async function registerRoutes(app2) {
   const router = express.Router();
   router.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password } = loginSchema.parse(req.body);
-      const user = userService.create({ username, password });
+      const signupSchema = z2.object({
+        username: z2.string().min(1, "Username is required"),
+        email: z2.string().email("Invalid email address"),
+        phoneNumber: z2.string().min(1, "Phone number is required"),
+        password: z2.string().min(8, "Password must be at least 8 characters long")
+      });
+      const { username, email, phoneNumber, password } = signupSchema.parse(req.body);
+      const user = userService.create({
+        username,
+        email,
+        phoneNumber,
+        password
+      });
       const token = generateToken(user);
-      res.status(201).json({ user, token });
+      res.status(201).json({
+        user,
+        token
+      });
     } catch (error) {
       console.error("Registration error:", error);
-      const status = error.message === "Username already exists" ? 409 : 400;
+      let status = 400;
+      let errorMessage = error.message || "Registration failed";
+      if (error.message === "Username already exists" || error.message === "Email already in use") {
+        status = 409;
+      }
       res.status(status).json({
-        error: error.message || "Registration failed"
+        error: errorMessage
       });
     }
   });
@@ -386,8 +411,20 @@ async function registerRoutes(app2) {
   });
   router.get("/api/me", authenticateToken, async (req, res) => {
     try {
+      const user = userService.getUserByUsername(req.user?.username || "");
+      if (!user) {
+        return res.status(404).json({
+          isAuthenticated: false,
+          error: "User not found"
+        });
+      }
       res.json({
-        user: req.user,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          phoneNumber: user.phoneNumber
+        },
         isAuthenticated: true
       });
     } catch (error) {

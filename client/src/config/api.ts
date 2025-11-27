@@ -67,6 +67,17 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     });
   },
+  signup: async (userData: {
+    username: string;
+    email: string;
+    phoneNumber: string;
+    password: string;
+  }) => {
+    return apiRequest<{ user: any; token: string }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
   getMe: async () => {
     return apiRequest<{ user: any; isAuthenticated: boolean }>('/api/me');
   },

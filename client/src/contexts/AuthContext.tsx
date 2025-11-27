@@ -5,6 +5,9 @@ import { authApi } from '@/config/api';
 type User = {
   id: string;
   username: string;
+  email: string;
+  phoneNumber: string;
+  isAdmin?: boolean;
 };
 
 type AuthContextType = {
@@ -12,6 +15,7 @@ type AuthContextType = {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
 };
 
@@ -95,11 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setLocation]);
 
   // Provide auth context
+  const isAdmin = user?.isAdmin || false;
   const value = {
     user,
     login,
     logout,
     isAuthenticated: !!user,
+    isAdmin,
     isLoading,
   };
 

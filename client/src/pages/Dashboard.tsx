@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import BookingCalendar from '@/components/BookingCalendar';
+import BookingViewModal from '@/components/BookingViewModal';
 
 type CalendarBooking = {
   id: string;
@@ -32,6 +33,9 @@ export default function Dashboard() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{start: string, end: string} | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -149,18 +153,55 @@ export default function Dashboard() {
 
   // For UI: if called from calendar, provide date. If called from button, call without param.
   const handleAddBooking = (date?: Date) => {
-    if (date) {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const cmpDate = new Date(date);
-      cmpDate.setHours(0,0,0,0);
-      if (cmpDate < today) {
-        setModalError("You cannot book rooms before current date");
-        return;
-      }
+    const selectedDate = date || new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const cmpDate = new Date(selectedDate);
+    cmpDate.setHours(0, 0, 0, 0);
+    
+    if (cmpDate < today) {
+      setModalError("You cannot book rooms before current date");
+      return;
     }
+    
+    setSelectedDate(selectedDate);
     setSelectedBooking(null);
-    setPendingDate(date || null);
+    setPendingDate(selectedDate);
+    setIsViewModalOpen(true);
+  };
+  
+  const handleViewModalClose = () => {
+    setIsViewModalOpen(false);
+    setSelectedTimeSlot(null);
+  };
+  
+  const handleProceedToBooking = (slot: {start: string, end: string}) => {
+    // Create new date objects to avoid reference issues
+    const startDate = new Date(slot.start);
+    const endDate = new Date(slot.end);
+    
+    // Ensure we have the correct date part
+    if (pendingDate) {
+      startDate.setFullYear(
+        pendingDate.getFullYear(),
+        pendingDate.getMonth(),
+        pendingDate.getDate()
+      );
+      endDate.setFullYear(
+        pendingDate.getFullYear(),
+        pendingDate.getMonth(),
+        pendingDate.getDate()
+      );
+    }
+    
+    setSelectedTimeSlot({
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
+    });
+    
+    setSelectedBooking(null); // Ensure we're in create mode
+    setIsViewModalOpen(false);
     setIsAddModalOpen(true);
   };
 
@@ -189,79 +230,89 @@ export default function Dashboard() {
     };
   };
 
-  const handleSaveBooking = async (bookingData: any) => {
-    try {
-      const formattedData = formatBookingData(bookingData);
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(formattedData),
-      });
-      if (!response.ok) {
-        let errMsg = 'Failed to create booking';
-        try {
-          const data = await response.json();
-          let bookedMsg = 'This room is already booked for the selected time period';
-          if (data) {
-            let foundBookedOverlap = false;
-            if (data.error && data.error.toLowerCase().includes('already booked for the selected time period')) {
-              foundBookedOverlap = true;
-            }
-            if (Array.isArray(data.details) && data.details.some((d: any) => d.message && d.message.toLowerCase().includes('already booked for the selected time period'))) {
-              foundBookedOverlap = true;
-            }
-            if (foundBookedOverlap) {
-              errMsg = bookedMsg;
-            } else if (data.error && Array.isArray(data.details)) {
-              errMsg = data.details.map((d: any) => d.message).join('\n');
-            } else if (data.error) {
-              errMsg = data.error;
-            }
-          }
-          setModalError(errMsg);
-          return; // DO NOT close modal
-        } catch (e) {}
-      }
-      await fetchBookings();
-      setIsAddModalOpen(false); // Only close if all good
-      setModalError(null);
-    } catch (err) {
-      console.error('Error creating booking:', err);
-      setModalError(err instanceof Error ? err.message : 'Failed to create booking');
-    }
-  };
-
-  const handleEditBooking = (id: string) => {
+  
+  const handleEditBooking = useCallback((id: string) => {
     const booking = bookings.find(b => b.id === id);
     if (booking) {
       setSelectedBooking(booking);
       setIsModalOpen(true);
     }
-  };
+  }, [bookings]);
 
-  const handleUpdateBooking = async (bookingData: any) => {
-    if (!selectedBooking) return;
-    
+  const handleSaveBooking = async (bookingData: any) => {
     try {
-      const formattedData = formatBookingData(bookingData);
-      const response = await fetch(`/api/bookings/${selectedBooking.id}`, {
-        method: 'PUT',
+      // BookingModal already sends properly formatted data with ISO strings
+      // No need to call formatBookingData here
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(formattedData),
+        body: JSON.stringify(bookingData), // Send data directly
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update booking');
+    
+    if (!response.ok) {
+      let errMsg = 'Failed to create booking';
+      try {
+        const data = await response.json();
+        let bookedMsg = 'This room is already booked for the selected time period';
+        if (data) {
+          let foundBookedOverlap = false;
+          if (data.error && data.error.toLowerCase().includes('already booked for the selected time period')) {
+            foundBookedOverlap = true;
+          }
+          if (Array.isArray(data.details) && data.details.some((d: any) => d.message && d.message.toLowerCase().includes('already booked for the selected time period'))) {
+            foundBookedOverlap = true;
+          }
+          if (foundBookedOverlap) {
+            errMsg = bookedMsg;
+          } else if (data.error && Array.isArray(data.details)) {
+            errMsg = data.details.map((d: any) => d.message).join('\n');
+          } else if (data.error) {
+            errMsg = data.error;
+          }
+        }
+        setModalError(errMsg);
+        return; // DO NOT close modal
+      } catch (e) {
+        setModalError(errMsg);
+        return;
       }
-      
-      // Refresh the bookings list and close modal
-      await fetchBookings();
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error('Error updating booking:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update booking');
     }
-  };
+    
+    await fetchBookings();
+    setIsAddModalOpen(false); // Only close if all good
+    setModalError(null);
+  } catch (err) {
+    console.error('Error creating booking:', err);
+    setModalError(err instanceof Error ? err.message : 'Failed to create booking');
+  }
+};
+
+  // Also update handleUpdateBooking similarly:
+const handleUpdateBooking = async (bookingData: any) => {
+  if (!selectedBooking) return;
+  
+  try {
+    // BookingModal already sends properly formatted data with ISO strings
+    const response = await fetch(`/api/bookings/${selectedBooking.id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(bookingData), // Send data directly
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to update booking');
+    }
+    
+    // Refresh the bookings list and close modal
+    await fetchBookings();
+    setIsModalOpen(false);
+    setModalError(null);
+  } catch (err) {
+    console.error('Error updating booking:', err);
+    setModalError(err instanceof Error ? err.message : 'Failed to update booking');
+  }
+};
 
   const handleDeleteBooking = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this booking?')) {
@@ -441,14 +492,33 @@ export default function Dashboard() {
           setError={setModalError}
         />
       )}
+{isViewModalOpen && selectedDate && (
+        <BookingViewModal
+          open={isViewModalOpen}
+          onClose={handleViewModalClose}
+          onAddBooking={handleProceedToBooking}
+          date={selectedDate}
+          bookings={bookings.filter(booking => {
+            const bookingDate = new Date(booking.startTime);
+            return (
+              bookingDate.getDate() === selectedDate.getDate() &&
+              bookingDate.getMonth() === selectedDate.getMonth() &&
+              bookingDate.getFullYear() === selectedDate.getFullYear()
+            );
+          })}
+        />
+      )}
+      
       {isAddModalOpen && (
         <BookingModal
           open={isAddModalOpen}
           onClose={handleCloseModal}
           onSave={handleSaveBooking}
+          defaultDate={pendingDate}
+          defaultStartTime={selectedTimeSlot?.start}
+          defaultEndTime={selectedTimeSlot?.end}
           error={modalError}
           setError={setModalError}
-          defaultDate={pendingDate}
         />
       )}
     </div>

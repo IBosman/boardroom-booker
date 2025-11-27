@@ -47,16 +47,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   router.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const { username, password } = loginSchema.parse(req.body);
-      const user = userService.create({ username, password });
+      // Define signup schema with all required fields
+      const signupSchema = z.object({
+        username: z.string().min(1, 'Username is required'),
+        email: z.string().email('Invalid email address'),
+        phoneNumber: z.string().min(1, 'Phone number is required'),
+        password: z.string().min(8, 'Password must be at least 8 characters long')
+      });
+      
+      const { username, email, phoneNumber, password } = signupSchema.parse(req.body);
+      
+      const user = userService.create({ 
+        username, 
+        email, 
+        phoneNumber, 
+        password 
+      });
+      
       const token = generateToken(user);
       
-      res.status(201).json({ user, token });
+      res.status(201).json({ 
+        user, 
+        token 
+      });
     } catch (error: any) {
       console.error("Registration error:", error);
-      const status = error.message === 'Username already exists' ? 409 : 400;
+      let status = 400;
+      let errorMessage = error.message || 'Registration failed';
+      
+      if (error.message === 'Username already exists' || 
+          error.message === 'Email already in use') {
+        status = 409;
+      }
+      
       res.status(status).json({ 
-        error: error.message || 'Registration failed' 
+        error: errorMessage
       });
     }
   });
@@ -81,10 +106,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify user token and get current user info
   router.get("/api/me", authenticateToken, async (req: Request, res: Response) => {
     try {
-      // If we got here, the token is valid (authenticateToken middleware passed)
-      // Just return the user info from the token
+      // Get the full user details including email and phone number
+      const user = userService.getUserByUsername(req.user?.username || '');
+      
+      if (!user) {
+        return res.status(404).json({
+          isAuthenticated: false,
+          error: 'User not found'
+        });
+      }
+      
+      // Return the user info including email and phone number
       res.json({ 
-        user: req.user,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          phoneNumber: user.phoneNumber
+        },
         isAuthenticated: true
       });
     } catch (error) {

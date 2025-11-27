@@ -10,6 +10,8 @@ const TOKEN_EXPIRY = '24h';
 type User = {
   id: string;
   username: string;
+  email: string;
+  phoneNumber: string;
   password: string;
 };
 
@@ -17,6 +19,8 @@ type User = {
 type UserPayload = {
   id: string;
   username: string;
+  email: string;
+  phoneNumber: string;
   // JWT standard claims (optional)
   iat?: number; // Issued At
   exp?: number; // Expiration Time
@@ -141,6 +145,8 @@ function initializeAdminUser() {
       const newUser: User = {
         id: 'admin-' + Date.now().toString(),
         username: adminUsername,
+        email: 'admin@example.com',
+        phoneNumber: '+1234567890',
         password: adminPassword // In production, this should be hashed
       };
       
@@ -173,12 +179,22 @@ export const userService = {
   },
 
   // Create new user
-  create: (userData: { username: string; password: string }): UserPayload => {
+  create: (userData: { 
+    username: string; 
+    email: string;
+    phoneNumber: string;
+    password: string; 
+  }): UserPayload => {
     const users = readUsers();
     
-    // Check if user already exists
+    // Check if username already exists
     if (users.some(user => user.username === userData.username)) {
       throw new Error('Username already exists');
+    }
+    
+    // Check if email already exists
+    if (users.some(user => user.email === userData.email)) {
+      throw new Error('Email already in use');
     }
 
     // In a real app, you should hash the password before saving
@@ -186,6 +202,8 @@ export const userService = {
     const newUser: User = {
       id: Date.now().toString(),
       username: userData.username,
+      email: userData.email,
+      phoneNumber: userData.phoneNumber,
       password: userData.password
     };
 

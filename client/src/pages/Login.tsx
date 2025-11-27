@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
+import { useLocation, Link, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,11 +13,25 @@ const Spinner = ({ className }: { className?: string }) => (
 
 export function Login() {
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const { login, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
+  const search = useSearch();
+  const [location] = useLocation();
+
+  // Check for registration success message in URL
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get('registered') === 'true') {
+      setSuccessMessage('Registration successful! Please log in with your credentials.');
+      // Clear the URL parameter without causing a navigation
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [search]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -87,6 +101,11 @@ export function Login() {
               {error}
             </div>
           )}
+          {successMessage && (
+            <div className="px-6 text-sm text-green-500">
+              {successMessage}
+            </div>
+          )}
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
@@ -98,6 +117,17 @@ export function Login() {
                 'Sign In'
               )}
             </Button>
+            
+            <div className="text-sm text-center text-muted-foreground">
+              Don't have an account?{' '}
+              <Link 
+                href="/signup" 
+                className="text-primary hover:underline"
+                aria-disabled={isLoading}
+              >
+                Sign up
+              </Link>
+            </div>
             <div className="relative w-full">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />

@@ -2,6 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Booking {
   id: string;
@@ -20,6 +21,11 @@ interface BookingsTableProps {
 }
 
 export default function BookingsTable({ bookings, onEdit, onDelete }: BookingsTableProps) {
+  const { user: currentUser, isAdmin } = useAuth();
+  
+  const canEditBooking = (bookingUser: string) => {
+    return isAdmin || currentUser?.username === bookingUser;
+  };
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
@@ -88,26 +94,28 @@ export default function BookingsTable({ bookings, onEdit, onDelete }: BookingsTa
               </TableCell>
               <TableCell className="text-muted-foreground">{booking.room}</TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => onEdit?.(booking.id)}
-                    data-testid={`button-edit-${booking.id}`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => onDelete?.(booking.id)}
-                    data-testid={`button-delete-${booking.id}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                {canEditBooking(booking.user) && (
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => onEdit?.(booking.id)}
+                      data-testid={`button-edit-${booking.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive hover:text-destructive/90"
+                      onClick={() => onDelete?.(booking.id)}
+                      data-testid={`button-delete-${booking.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </TableCell>
             </TableRow>
           ))}

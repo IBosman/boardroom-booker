@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Mail, Phone, Pencil, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Booking {
   id: string;
@@ -29,6 +30,8 @@ export default function BookingCard({
   onEdit,
   onDelete 
 }: BookingCardProps) {
+  const { user: currentUser, isAdmin } = useAuth();
+  const canEdit = isAdmin || currentUser?.username === user;
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
@@ -71,26 +74,28 @@ export default function BookingCard({
           <span className="text-xs text-muted-foreground">
             {formatDate(startTime)} • {formatTime(startTime)} - {formatTime(endTime)}
           </span>
-          <div className="flex gap-1">
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="h-8 w-8"
-              onClick={() => onEdit?.(id)}
-              data-testid={`button-edit-${id}`}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="h-8 w-8"
-              onClick={() => onDelete?.(id)}
-              data-testid={`button-delete-${id}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex gap-1">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-8 w-8"
+                onClick={() => onEdit?.(id)}
+                data-testid={`button-edit-${id}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-8 w-8 text-destructive hover:text-destructive/90"
+                onClick={() => onDelete?.(id)}
+                data-testid={`button-delete-${id}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

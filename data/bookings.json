@@ -8,5 +8,85 @@
     "room": "room-1",
     "id": "d0137978-6198-4ee8-9e71-8502c8a55408",
     "createdAt": "2025-11-20T13:28:02.499Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan.bosman@habarimedia.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-26T15:00:00.000Z",
+    "endTime": "2025-11-26T16:00:00.000Z",
+    "room": "room-1",
+    "id": "519df0f6-dbef-41f4-9dd9-d62b019a840e",
+    "createdAt": "2025-11-25T12:24:32.769Z"
+  },
+  {
+    "user": "bob",
+    "email": "bob@bob.com",
+    "phone": "068526418",
+    "startTime": "2025-11-26T15:00:00.000Z",
+    "endTime": "2025-11-26T16:00:00.000Z",
+    "room": "room-2",
+    "id": "d01fe325-0385-413a-ac76-c93934e49928",
+    "createdAt": "2025-11-25T12:25:09.927Z"
+  },
+  {
+    "user": "imraan",
+    "email": "m@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-26T16:00:00.000Z",
+    "endTime": "2025-11-26T17:00:00.000Z",
+    "room": "room-1",
+    "id": "d09a78d1-f995-47ca-8bac-a4b547bb5d4c",
+    "createdAt": "2025-11-25T12:27:12.409Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan.bosman@habarimedia.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-27T10:00:00.000Z",
+    "endTime": "2025-11-27T11:00:00.000Z",
+    "room": "room-2",
+    "id": "73367b1d-c660-40c5-b1d7-8b9335e4616a",
+    "createdAt": "2025-11-26T09:50:31.664Z"
+  },
+  {
+    "user": "imraan",
+    "email": "imraan.bosman@habarimedia.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-27T10:00:00.000Z",
+    "endTime": "2025-11-27T11:00:00.000Z",
+    "room": "room-1",
+    "id": "c89fd65f-fffb-4fb0-99cd-5b472e789973",
+    "createdAt": "2025-11-26T09:51:35.775Z"
+  },
+  {
+    "user": "smith",
+    "email": "smith@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-28T08:00:00.000Z",
+    "endTime": "2025-11-28T09:00:00.000Z",
+    "room": "room-1",
+    "id": "be6f1fef-caba-40c1-9bb9-baf5d216b3a9",
+    "createdAt": "2025-11-27T07:51:31.907Z"
+  },
+  {
+    "user": "smith",
+    "email": "smith@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-29T14:00:00.000Z",
+    "endTime": "2025-11-29T15:00:00.000Z",
+    "room": "room-2",
+    "id": "86c0a28e-6a9b-431e-88f7-1919bb946a52",
+    "createdAt": "2025-11-27T07:59:33.878Z"
+  },
+  {
+    "user": "smith",
+    "email": "smith@example.com",
+    "phone": "0685264318",
+    "startTime": "2025-11-29T08:00:00.000Z",
+    "endTime": "2025-11-29T09:00:00.000Z",
+    "room": "room-2",
+    "id": "61eb3e82-970a-4933-8f18-78220f3c6e5f",
+    "createdAt": "2025-11-27T08:05:37.993Z"
   }
 ]

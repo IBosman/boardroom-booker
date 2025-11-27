@@ -1,14 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useRef, useEffect } from 'react';
-import { format, parse, setHours, setMinutes, addHours, isAfter, isBefore, set } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import { format } from 'date-fns';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { TimeClock } from '@mui/x-date-pickers/TimeClock';
@@ -30,26 +28,72 @@ interface BookingModalProps {
   error?: string | null;
   setError?: (err: string | null) => void;
   defaultDate?: Date | null;
+  defaultStartTime?: string;
+  defaultEndTime?: string;
 }
 
-export default function BookingModal({ open, onClose, booking, onSave, error, setError, defaultDate = null }: BookingModalProps) {
+export default function BookingModal({ 
+  open, 
+  onClose, 
+  booking, 
+  onSave, 
+  error, 
+  setError, 
+  defaultDate = null, 
+  defaultStartTime, 
+  defaultEndTime 
+}: BookingModalProps) {
+  const { user: currentUser } = useAuth();
   const [date, setDate] = useState<Date | undefined>(
     booking ? new Date(booking.startTime) : (defaultDate || new Date())
   );
-  const [user, setUser] = useState(booking?.user || '');
-  const [email, setEmail] = useState(booking?.email || '');
-  const [phone, setPhone] = useState(booking?.phone || '');
-  const [startTime, setStartTime] = useState<Date>(
-    booking ? new Date(booking.startTime) : setMinutes(setHours(new Date(), 9), 0)
-  );
-  const [endTime, setEndTime] = useState<Date>(
-    booking ? new Date(booking.endTime) : setMinutes(setHours(new Date(), 10), 0)
-  );
-  const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
-  const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
+  
+  // Get user info from auth context
+  const user = booking?.user || currentUser?.username || '';
+  const email = booking?.email || currentUser?.email || '';
+  const phone = booking?.phone || currentUser?.phoneNumber || '';
+  
+  // Initialize start and end times from props
+  const getInitialStartTime = () => {
+    if (booking) return format(new Date(booking.startTime), 'HH:mm');
+    if (defaultStartTime) return format(new Date(defaultStartTime), 'HH:mm');
+    return '09:00';
+  };
+  
+  const getInitialEndTime = () => {
+    if (booking) return format(new Date(booking.endTime), 'HH:mm');
+    if (defaultEndTime) return format(new Date(defaultEndTime), 'HH:mm');
+    // If we have a start time but no end time, set end time to 1 hour after start
+    if (defaultStartTime) {
+      const end = new Date(defaultStartTime);
+      end.setHours(end.getHours() + 1);
+      return format(end, 'HH:mm');
+    }
+    return '10:00';
+  };
+  
+  const [startTime, setStartTime] = useState(getInitialStartTime());
+  const [endTime, setEndTime] = useState(getInitialEndTime());
+  
+  // Update times when default props change
+  useEffect(() => {
+    if (defaultStartTime) {
+      setStartTime(format(new Date(defaultStartTime), 'HH:mm'));
+    }
+    if (defaultEndTime) {
+      setEndTime(format(new Date(defaultEndTime), 'HH:mm'));
+    } else if (defaultStartTime) {
+      // If only start time is provided, set end time to 1 hour later
+      const end = new Date(defaultStartTime);
+      end.setHours(end.getHours() + 1);
+      setEndTime(format(end, 'HH:mm'));
+    }
+  }, [defaultStartTime, defaultEndTime]);
   // Track if user has changed end time after modal opens
   const [isEndTimeDirty, setIsEndTimeDirty] = useState(false);
   const [room, setRoom] = useState(booking?.room || 'room-1');
+  const [startClockOpen, setStartClockOpen] = useState(false);
+  const [endClockOpen, setEndClockOpen] = useState(false);
 
   const SAVE_ERR_MSG = 'This room is already booked for the selected time period';
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -63,13 +107,17 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
     if (!open) return;
     if (!booking && defaultDate) setDate(defaultDate);
     setIsEndTimeDirty(false);
+    setStartClockOpen(false);
+    setEndClockOpen(false);
   }, [open, booking, defaultDate]);
   // Sync endTime when startTime changes (for new bookings or when user hasn't manually overridden)
   useEffect(() => {
     if (booking) return;
     if (!isEndTimeDirty) {
-      const newEndTime = addHours(startTime, 1);
-      setEndTime(newEndTime);
+      const [startH, startM] = startTime.split(":").map(Number);
+      const padded = (n: number) => String(n).padStart(2, '0');
+      const newEndHour = (startH + 1) % 24;
+      setEndTime(`${padded(newEndHour)}:${padded(startM)}`);
     }
   }, [startTime, booking, isEndTimeDirty]);
   const handlePopoverClose = () => {
@@ -77,51 +125,212 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
     setError && setError(null);
   };
 
-  const handleSave = () => {
-    // Validate required fields
-    if (!email.trim()) {
-      setError && setError('Email is required');
-      return;
+  const timeStringToDayjs = (time: string): Dayjs => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = dayjs();
+    return now.hour(hours).minute(minutes).second(0).millisecond(0);
+  };
+  
+  const getMinTime = (): Dayjs => {
+    return dayjs().startOf('day'); // Start of day (midnight)
+  };
+  
+  const getMaxTime = (): Dayjs => {
+    return dayjs().endOf('day'); // End of day (23:59:59)
+  };
+
+  // Helper function to format a date to ISO string with validation
+  const formatToISO = (date: Date): string => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) {
+      throw new Error(`Invalid date: ${date}`);
     }
-    if (!phone.trim()) {
-      setError && setError('Phone number is required');
-      return;
-    }
-    
-    if (date) {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const selDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      if (selDate < today) {
-        setError && setError('You cannot book rooms before today.');
-        return;
+    return d.toISOString();
+  };
+
+  const formatDisplayTime = (time: string | Date) => {
+    try {
+      // Handle case where time is a Date object or date string
+      if (time instanceof Date || (typeof time === 'object' && 'getTime' in time)) {
+        return format(new Date(time), 'h:mm aa');
       }
-      // Block start times in the past for today
-      if (selDate.getTime() === today.getTime()) {
-        const userStart = new Date(selDate);
-        userStart.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
-        if (userStart.getTime() < now.getTime()) {
-          setError && setError('You cannot book rooms before the current time.');
-          return;
+      
+      // Handle case where time is a time string (e.g., '13:30' or ISO string)
+      if (typeof time === 'string') {
+        // If it's an ISO string, parse it directly
+        if (time.includes('T') || time.endsWith('Z')) {
+          return format(new Date(time), 'h:mm aa');
+        }
+        
+        // If it's a time string (HH:MM), combine with today's date
+        if (time.match(/^\d{1,2}:\d{2}$/)) {
+          const [hours, minutes] = time.split(':').map(Number);
+          const tempDate = new Date();
+          tempDate.setHours(hours, minutes, 0, 0);
+          return format(tempDate, 'h:mm aa');
         }
       }
+      
+      // Default fallback
+      return time || 'Invalid time';
+    } catch (error) {
+      console.error('Error formatting time:', { time, error });
+      return 'Invalid time';
     }
-    const bookingData = {
-      user,
-      email,
-      phone,
-      date,
-      startTime: format(startTime, 'HH:mm'),
-      endTime: format(endTime, 'HH:mm'),
-      room
-    };
-    console.log('Saving booking:', bookingData);
-    onSave?.(bookingData);
+  };
+
+  const getStartMinTime = (): Dayjs | undefined => {
+    if (!date) return undefined;
+    const today = new Date();
+    if (date.toDateString() !== today.toDateString()) return undefined;
+    return dayjs().startOf('day').hour(today.getHours()).minute(today.getMinutes());
+  };
+
+  const handleSave = () => {
+    if (!date) {
+      setError && setError('Please select a date.');
+      return;
+    }
+
+    try {
+      // Parse time strings to hours and minutes
+      const [startHours, startMinutes] = startTime.split(":").map(Number);
+      const [endHours, endMinutes] = endTime.split(":").map(Number);
+      
+      // Create date objects in local time
+      const startDate = new Date(date);
+      startDate.setHours(startHours, startMinutes, 0, 0);
+      
+      const endDate = new Date(date);
+      endDate.setHours(endHours, endMinutes, 0, 0);
+      
+      const now = new Date();
+      
+      // Debug logs
+      console.log('=== Date Debug ===');
+      console.log('Base date:', date);
+      console.log('Start time:', startTime, 'Parsed hours:', startHours, startMinutes);
+      console.log('End time:', endTime, 'Parsed hours:', endHours, endMinutes);
+      console.log('Start date:', startDate.toString());
+      console.log('End date:', endDate.toString());
+      
+      // Basic validation
+      if (isNaN(startDate.getTime())) {
+        throw new Error(`Invalid start date: ${startDate.toString()}`);
+      }
+      if (isNaN(endDate.getTime())) {
+        throw new Error(`Invalid end date: ${endDate.toString()}`);
+      }
+      
+      // Check if dates are valid
+      if (isNaN(startDate.getTime())) {
+        setError && setError(`Invalid start date/time format: ${startTime}`);
+        return;
+      }
+      
+      if (isNaN(endDate.getTime())) {
+        setError && setError(`Invalid end date/time format: ${endTime}`);
+        return;
+      }
+      
+      // Check if end time is after start time
+      if (endDate <= startDate) {
+        setError && setError(`End time (${formatDisplayTime(endTime)}) must be after start time (${formatDisplayTime(startTime)})`);
+        return;
+      }
+      
+      // Check if booking is in the past (with 15-minute buffer)
+      const bufferTime = 15 * 60 * 1000; // 15 minutes in milliseconds
+      if (startDate.getTime() < (now.getTime() - bufferTime)) {
+        const formattedStart = format(startDate, 'PPpp');
+        const formattedNow = format(now, 'PPpp');
+        setError && setError(`Cannot book a room in the past. Selected time: ${formattedStart}, Current time: ${formattedNow}`);
+        return;
+      }
+      
+      // Format dates as ISO strings without timezone offset for the server
+      const formatToISO = (date: Date) => {
+        // Create a new date object to avoid modifying the original
+        const d = new Date(date);
+        // Use toISOString() which handles timezone conversion properly
+        return d.toISOString();
+      };
+      
+      // Log the raw date objects
+      console.log('Raw Date Objects:', {
+        startDate: startDate.toString(),
+        endDate: endDate.toString(),
+        startDateISO: startDate.toISOString(),
+        endDateISO: endDate.toISOString(),
+        startTimeValue: formatToISO(startDate),
+        endTimeValue: formatToISO(endDate)
+      });
+
+      const bookingData = {
+        user,
+        email,
+        phone,
+        startTime: formatToISO(startDate),
+        endTime: formatToISO(endDate),
+        room
+      };
+      
+      // Add detailed validation before saving
+      console.log('=== DEBUG: Date Validation ===');
+      console.log('Raw startTime:', startTime, 'Parsed:', new Date(startTime));
+      console.log('Raw endTime:', endTime, 'Parsed:', new Date(endTime));
+      console.log('Raw date:', date, 'Type:', typeof date);
+      
+      // Validate dates
+      const startDateObj = new Date(bookingData.startTime);
+      const endDateObj = new Date(bookingData.endTime);
+      
+      if (isNaN(startDateObj.getTime())) {
+        throw new Error(`Invalid start date format: ${bookingData.startTime}`);
+      }
+      if (isNaN(endDateObj.getTime())) {
+        throw new Error(`Invalid end date format: ${bookingData.endTime}`);
+      }
+      
+      console.log('Sending booking data (stringified):', JSON.stringify(bookingData, null, 2));
+      console.log('Saving booking (raw object):', {
+        ...bookingData,
+        // Add type information for debugging
+        startTimeType: typeof bookingData.startTime,
+        endTimeType: typeof bookingData.endTime,
+        startDateInstance: startDateObj.toString(),
+        endDateInstance: endDateObj.toString()
+      });
+      
+      try {
+        onSave?.(bookingData);
+      } catch (saveError) {
+        console.error('Error in onSave callback:', saveError);
+        throw saveError;
+      }
+    } catch (error) {
+      console.error('=== DEBUG: Error Details ===');
+      console.error('Error object:', error);
+      console.error('Start time value:', startTime, 'Type:', typeof startTime);
+      console.error('End time value:', endTime, 'Type:', typeof endTime);
+      console.error('Date value:', date, 'Type:', typeof date);
+      
+      // Simple error message showing the exact values
+      let errorMessage = 'Error creating booking. ';
+      
+      if (error instanceof Error) {
+        // If we have a specific error message, use it, otherwise show the raw values
+        errorMessage += error.message || `Check these values: Start: ${startTime}, End: ${endTime}, Date: ${date}`;
+      }
+      
+      setError && setError(errorMessage + ' Please try again.');
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md" data-testid="dialog-booking-edit">
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-md" data-testid="dialog-booking-edit">
         <DialogHeader>
           <DialogTitle>{booking ? 'Edit Booking' : 'New Booking'}</DialogTitle>
         </DialogHeader>
@@ -136,151 +345,123 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
         )}
 
         <div className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="user" className="text-sm font-medium">Name</Label>
-              <Input
-                id="user"
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-                className="mt-1"
-                data-testid="input-user"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1"
-                  data-testid="input-email"
-                  placeholder="email@example.com"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone" className="text-sm font-medium">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="mt-1"
-                  data-testid="input-phone"
-                  placeholder="+1 (___) ___-____"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Select Date</Label>
-            <div className="border rounded-md p-3">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                fromDate={new Date(new Date().setHours(0,0,0,0))} // today min
-                className="mx-auto"
-                data-testid="calendar-booking-date"
-              />
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="start-time" className="text-sm font-medium block mb-1">Start Time</Label>
-              <Popover open={isStartTimeOpen} onOpenChange={setIsStartTimeOpen}>
+              <Label htmlFor="start-time" className="text-sm font-medium">Start Time</Label>
+              <Popover open={startClockOpen} onOpenChange={setStartClockOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startTime && "text-muted-foreground"
-                    )}
+                  <button
+                    id="start-time"
+                    type="button"
+                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     data-testid="input-start-time"
                   >
-                    <Clock className="mr-2 h-4 w-4" />
-                    {format(startTime, 'h:mm a')}
-                  </Button>
+                    {formatDisplayTime(startTime)}
+                  </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <div className="p-4">
+                <PopoverContent align="start" className="p-0 w-auto" sideOffset={5}>
+                  <div className="p-4">
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
                       <TimeClock
-                        value={dayjs(startTime)}
-                        onChange={(newTime) => {
-                          if (newTime) {
-                            setStartTime(newTime.toDate());
-                          }
+                        value={timeStringToDayjs(startTime)}
+                        onChange={(value) => {
+                          if (!value) return;
+                          setStartTime(value.format('HH:mm'));
                         }}
+                        onViewChange={() => {}}
                         ampm={false}
-                        minutesStep={5}
+                        minutesStep={15}
+                        minTime={getMinTime()}
+                        maxTime={getMaxTime()}
                         views={['hours', 'minutes']}
-                        className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
+                        sx={{
+                          '& .MuiClock-pin, & .MuiClockPointer-root, & .MuiClockPointer-thumb': {
+                            backgroundColor: 'hsl(var(--primary))',
+                            borderColor: 'hsl(var(--primary))',
+                          },
+                          '& .MuiClockNumber-root': {
+                            color: 'hsl(var(--foreground))',
+                          },
+                          '& .MuiClockNumber-root.Mui-selected': {
+                            color: 'white',
+                          },
+                          '& .MuiClockNumber-root.Mui-disabled': {
+                            color: 'hsl(var(--muted-foreground) / 0.5)',
+                          },
+                        }}
                       />
-                      <div className="flex justify-between mt-2">
-                        <Button
+                      <div className="mt-4 flex justify-end">
+                        <Button 
+                          size="sm" 
+                          onClick={() => setStartClockOpen(false)}
                           variant="outline"
-                          size="sm"
-                          onClick={() => setIsStartTimeOpen(false)}
+                          className="h-8"
                         >
                           Done
                         </Button>
                       </div>
-                    </div>
-                  </LocalizationProvider>
+                    </LocalizationProvider>
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>
             <div>
-              <Label htmlFor="end-time" className="text-sm font-medium block mb-1">End Time</Label>
-              <Popover open={isEndTimeOpen} onOpenChange={setIsEndTimeOpen}>
+              <Label htmlFor="end-time" className="text-sm font-medium">End Time</Label>
+              <Popover open={endClockOpen} onOpenChange={setEndClockOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endTime && "text-muted-foreground"
-                    )}
+                  <button
+                    id="end-time"
+                    type="button"
+                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     data-testid="input-end-time"
                   >
-                    <Clock className="mr-2 h-4 w-4" />
-                    {format(endTime, 'h:mm a')}
-                  </Button>
+                    {formatDisplayTime(endTime)}
+                  </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <div className="p-4">
+                <PopoverContent align="start" className="p-0 w-auto" sideOffset={5}>
+                  <div className="p-4">
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
                       <TimeClock
-                        value={dayjs(endTime)}
-                        onChange={(newTime) => {
-                          if (newTime) {
-                            setEndTime(newTime.toDate());
-                            setIsEndTimeDirty(true);
-                          }
+                        value={timeStringToDayjs(endTime)}
+                        onChange={(value) => {
+                          if (!value) return;
+                          setEndTime(value.format('HH:mm'));
+                          setIsEndTimeDirty(true);
                         }}
+                        onViewChange={() => {}}
                         ampm={false}
-                        minutesStep={5}
+                        minutesStep={15}
+                        minTime={timeStringToDayjs(startTime)}
+                        maxTime={getMaxTime()}
                         views={['hours', 'minutes']}
-                        className="[& .MuiClock-clock]:bg-accent/10 [& .MuiClock-clock]:dark:bg-accent/20"
+                        sx={{
+                          '& .MuiClock-pin, & .MuiClockPointer-root, & .MuiClockPointer-thumb': {
+                            backgroundColor: 'hsl(var(--primary))',
+                            borderColor: 'hsl(var(--primary))',
+                          },
+                          '& .MuiClockNumber-root': {
+                            color: 'hsl(var(--foreground))',
+                          },
+                          '& .MuiClockNumber-root.Mui-selected': {
+                            color: 'white',
+                          },
+                          '& .MuiClockNumber-root.Mui-disabled': {
+                            color: 'hsl(var(--muted-foreground) / 0.5)',
+                          },
+                        }}
                       />
-                      <div className="flex justify-between mt-2">
-                        <Button
+                      <div className="mt-4 flex justify-end">
+                        <Button 
+                          size="sm" 
+                          onClick={() => setEndClockOpen(false)}
                           variant="outline"
-                          size="sm"
-                          onClick={() => setIsEndTimeOpen(false)}
+                          className="h-8"
                         >
                           Done
                         </Button>
                       </div>
-                    </div>
-                  </LocalizationProvider>
+                    </LocalizationProvider>
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>
@@ -323,7 +504,8 @@ export default function BookingModal({ open, onClose, booking, onSave, error, se
             Save Changes
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </LocalizationProvider>
   );
 }
