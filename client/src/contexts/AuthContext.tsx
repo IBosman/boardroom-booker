@@ -46,7 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       console.log('User authenticated successfully:', response.user);
-      setUser(response.user);
+      // Make sure to include the isAdmin flag when setting the user
+      const userData = {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        phoneNumber: response.user.phoneNumber,
+        isAdmin: response.user.isAdmin || false
+      };
+      setUser(userData);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
@@ -78,8 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store the token
       localStorage.setItem('token', response.data.token);
       
-      // Update user state
-      setUser(response.data.user);
+      // Update user state with the user data from the response
+      // Make sure to include the isAdmin flag
+      const userData = {
+        id: response.data.user.id,
+        username: response.data.user.username,
+        email: response.data.user.email,
+        phoneNumber: response.data.user.phoneNumber,
+        isAdmin: response.data.user.isAdmin || false
+      };
+      
+      setUser(userData);
       
       // Redirect to dashboard
       setLocation('/dashboard');

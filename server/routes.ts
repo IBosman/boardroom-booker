@@ -1,8 +1,8 @@
-import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import express, { type Express, type Request, type Response, type NextFunction, Router } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { loginSchema, userService, generateToken, authenticateToken } from "./auth";
+import { loginSchema, userService, generateToken, authenticateToken, UserPayload } from "./auth";
 
 // Request validation schemas
 // Helper to validate date strings with flexible format
@@ -36,7 +36,12 @@ type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; username: string };
+      user?: { 
+        id: string; 
+        username: string;
+        email?: string;
+        isAdmin?: boolean;
+      }
     }
   }
 }
@@ -96,7 +101,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const token = generateToken(user);
-      res.json({ user, token });
+      
+      // Ensure the response includes the isAdmin flag
+      const userResponse = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        isAdmin: user.isAdmin || false
+      };
+      
+      res.json({ 
+        user: userResponse, 
+        token 
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(400).json({ error: 'Login failed' });
@@ -106,25 +124,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify user token and get current user info
   router.get("/api/me", authenticateToken, async (req: Request, res: Response) => {
     try {
-      // Get the full user details including email and phone number
-      const user = userService.getUserByUsername(req.user?.username || '');
-      
-      if (!user) {
-        return res.status(404).json({
-          isAuthenticated: false,
-          error: 'User not found'
-        });
+      if (!req.user) {
+        return res.status(401).json({ error: 'User not authenticated' });
       }
       
-      // Return the user info including email and phone number
-      res.json({ 
+      // Get the full user details including email and phone number
+      const user = userService.getUserByUsername(req.user.username);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json({
+        isAuthenticated: true,
         user: {
           id: user.id,
           username: user.username,
           email: user.email,
-          phoneNumber: user.phoneNumber
-        },
-        isAuthenticated: true
+          phoneNumber: user.phoneNumber,
+          isAdmin: user.isAdmin || false
+        }
       });
     } catch (error) {
       console.error('Error in /api/me:', error);

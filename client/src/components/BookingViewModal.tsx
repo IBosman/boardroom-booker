@@ -8,6 +8,7 @@ interface TimeSlot {
   start: string;
   end: string;
   isBooked: boolean;
+  room?: string;
   booking?: {
     user: string;
     email: string;
@@ -38,7 +39,7 @@ export default function BookingViewModal({
 }: BookingViewModalProps) {
   // Removed selectedSlot state as it's no longer needed
 
-  // Generate time slots for the day (8 AM to 6 PM)
+  // Generate fixed one-hour time slots for the day (8 AM to 6 PM) per room
   const generateTimeSlots = (): TimeSlot[] => {
     const slots: TimeSlot[] = [];
     const dayStart = new Date(date);
@@ -55,96 +56,64 @@ export default function BookingViewModal({
     };
 
     // Get all rooms
-    const allRooms = ['room-1', 'room-2']; // Add all your room IDs here
+    const allRooms = ['room-1', 'room-2'];
     
     // Sort bookings by start time
     const sortedBookings = [...bookings].sort((a, b) => 
       new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
-    // First, generate all booked slots
-    for (const booking of sortedBookings) {
-      const bookingStart = new Date(booking.startTime);
-      const bookingEnd = new Date(booking.endTime);
+    // Generate fixed one-hour slots for each room
+    allRooms.forEach(room => {
+      const currentTime = new Date(dayStart);
       
-      // Only process bookings for the current date
-      if (bookingStart >= dayStart && bookingStart < dayEnd) {
-        slots.push({
-          start: toISOLocal(bookingStart),
-          end: toISOLocal(bookingEnd),
-          isBooked: true,
-          booking: {
-            user: booking.user,
-            email: booking.email,
-            room: booking.room
-          }
-        });
-      }
-    }
+      while (currentTime < dayEnd) {
+        const slotStart = new Date(currentTime);
+        const slotEnd = new Date(slotStart);
+        slotEnd.setHours(slotStart.getHours() + 1);
 
-    // Then generate available slots
-    let currentTime = new Date(dayStart);
-    
-    while (currentTime < dayEnd) {
-      const slotStart = new Date(currentTime);
-      let slotEnd = new Date(slotStart);
-      slotEnd.setHours(slotStart.getHours() + 1); // Default to 1 hour slots
-
-      // Check if this time is available in any room
-      const isBookedInAllRooms = allRooms.every(room => {
-        return sortedBookings.some(b => {
+        // Find if there's a booking for this room and time slot
+        const booking = sortedBookings.find(b => {
           if (b.room !== room) return false;
           const bookingStart = new Date(b.startTime);
           const bookingEnd = new Date(b.endTime);
           return slotStart < bookingEnd && slotEnd > bookingStart;
         });
-      });
 
-      if (!isBookedInAllRooms) {
-        // Extend the available slot as far as possible
-        let nextHour = new Date(slotEnd);
-        let nextHourEnd = new Date(nextHour);
-        nextHourEnd.setHours(nextHour.getHours() + 1);
-        
-        while (nextHour < dayEnd) {
-          const isNextHourBookedInAllRooms = allRooms.every(room => {
-            return sortedBookings.some(b => {
-              if (b.room !== room) return false;
-              const bookingStart = new Date(b.startTime);
-              const bookingEnd = new Date(b.endTime);
-              return nextHour < bookingEnd && nextHourEnd > bookingStart;
-            });
+        if (booking) {
+          // Add booked slot
+          slots.push({
+            start: toISOLocal(slotStart),
+            end: toISOLocal(slotEnd),
+            isBooked: true,
+            room: booking.room,
+            booking: {
+              user: booking.user,
+              email: booking.email,
+              room: booking.room
+            }
           });
-          
-          if (isNextHourBookedInAllRooms) break;
-          
-          slotEnd.setHours(slotEnd.getHours() + 1);
-          nextHour.setHours(nextHour.getHours() + 1);
-          nextHourEnd.setHours(nextHourEnd.getHours() + 1);
+        } else {
+          // Add available slot for this room
+          slots.push({
+            start: toISOLocal(slotStart),
+            end: toISOLocal(slotEnd),
+            isBooked: false,
+            room: room
+          });
         }
-        
-        // Add available slot
-        slots.push({
-          start: toISOLocal(slotStart),
-          end: toISOLocal(slotEnd),
-          isBooked: false
-        });
-        
-        // Skip ahead to the end of this available slot
-        currentTime = new Date(slotEnd);
-      } else {
-        // Move to next time slot
-        currentTime = new Date(slotEnd);
-      }
 
-      // Move to next time slot
-      currentTime = new Date(slotEnd);
-    }
+        // Move to next hour
+        currentTime.setHours(currentTime.getHours() + 1);
+      }
+    });
 
     return slots;
   };
 
-  const timeSlots = generateTimeSlots();
+  const timeSlots = generateTimeSlots().sort((a, b) => 
+    new Date(a.start).getTime() - new Date(b.start).getTime()
+  );
 
   const formatTime = (dateTime: string) => {
     return format(parseISO(dateTime), 'h:mm a');
@@ -178,6 +147,25 @@ export default function BookingViewModal({
     });
   };
 
+  // Group time slots by hour and sort by room
+  const timeSlotsByHour = Array.from({ length: 11 }, (_, i) => {
+    const hour = i + 8; // 8 AM to 6 PM
+    const hourStart = new Date(date);
+    hourStart.setHours(hour, 0, 0, 0);
+    
+    const formattedHour = format(hourStart, 'h a');
+    
+    // Get all slots for this hour and sort by room
+    const slotsForHour = timeSlots
+      .filter(slot => new Date(slot.start).getHours() === hour)
+      .sort((a, b) => (a.room || '').localeCompare(b.room || ''));
+
+    return {
+      hour: formattedHour,
+      slots: slotsForHour
+    };
+  });
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -185,38 +173,51 @@ export default function BookingViewModal({
           <DialogTitle>Bookings for {format(date, 'EEEE, MMMM d, yyyy')}</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-          {timeSlots.map((slot, index) => (
-            <div 
-              key={index}
-              className={`p-3 rounded-md border ${
-                slot.isBooked 
-                  ? 'bg-gray-100 border-gray-200 cursor-not-allowed' 
-                  : 'hover:bg-gray-50 cursor-pointer border-gray-200'
-              }`}
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="font-medium">
-                    {formatTime(slot.start)} - {formatTime(slot.end)}
-                    {!slot.isBooked && (
-                      <span className="ml-2 text-sm text-green-600 font-normal">
-                        Available
-                      </span>
-                    )}
-                  </div>
-                  {slot.isBooked && slot.booking && (
-                    <div className="text-sm text-gray-600 mt-1 space-y-1">
-                      <div>Booked by {slot.booking.user}</div>
-                      <div className="text-xs text-gray-500">Room: {slot.booking.room}</div>
+        <div className="max-h-[500px] overflow-y-auto pr-2">
+          {timeSlotsByHour.map((hourGroup, index) => (
+            <div key={index} className="mb-4">
+              {/* <h3 className="text-sm font-medium text-gray-500 mb-2">{hourGroup.hour}</h3> */}
+              <div className="space-y-2">
+                {hourGroup.slots.map((slot, slotIndex) => (
+                  <div 
+                    key={slotIndex}
+                    className={`p-3 rounded-md border ${
+                      slot.isBooked 
+                        ? 'bg-gray-50 border-gray-200' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {formatTime(slot.start)} - {formatTime(slot.end)}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {slot.isBooked ? (
+                            <>
+                              <div>Booked by {slot.booking?.user}</div>
+                              <div className="text-xs text-gray-500">Room: {slot.room}</div>
+                            </>
+                          ) : (
+                            <div className="text-green-600">
+                              Available in {slot.room}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {!slot.isBooked && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="ml-2"
+                          onClick={(e) => handleBookNow(e, slot)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Book
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </div>
-                {!slot.isBooked && (
-                  <Button size="sm" onClick={(e) => handleBookNow(e, slot)}>
-                    <Plus className="h-4 w-4 mr-1" /> Book
-                  </Button>
-                )}
+                  </div>
+                ))}
               </div>
             </div>
           ))}

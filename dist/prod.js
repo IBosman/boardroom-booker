@@ -215,7 +215,12 @@ var loginSchema = z.object({
 });
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, username: user.username },
+    {
+      id: user.id,
+      username: user.username,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: user.username.toLowerCase() === "admin"
+    },
     JWT_SECRET,
     { expiresIn: TOKEN_EXPIRY }
   );
@@ -290,8 +295,9 @@ function initializeAdminUser() {
         username: adminUsername,
         email: "admin@example.com",
         phoneNumber: "+1234567890",
-        password: adminPassword
+        password: adminPassword,
         // In production, this should be hashed
+        isAdmin: true
       };
       users.push(newUser);
       writeUsers(users);
@@ -313,7 +319,11 @@ var userService = {
     const user = userService.findByUsername(username);
     if (!user) return void 0;
     const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: username.toLowerCase() === "admin"
+    };
   },
   // Create new user
   create: (userData) => {
@@ -341,7 +351,11 @@ var userService = {
     const user = userService.findByUsername(username);
     if (!user || user.password !== password) return null;
     const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: username.toLowerCase() === "admin"
+    };
   }
 };
 
@@ -403,7 +417,17 @@ async function registerRoutes(app2) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       const token = generateToken(user);
-      res.json({ user, token });
+      const userResponse = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        isAdmin: user.isAdmin || false
+      };
+      res.json({
+        user: userResponse,
+        token
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(400).json({ error: "Login failed" });
@@ -411,21 +435,22 @@ async function registerRoutes(app2) {
   });
   router.get("/api/me", authenticateToken, async (req, res) => {
     try {
-      const user = userService.getUserByUsername(req.user?.username || "");
+      if (!req.user) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      const user = userService.getUserByUsername(req.user.username);
       if (!user) {
-        return res.status(404).json({
-          isAuthenticated: false,
-          error: "User not found"
-        });
+        return res.status(404).json({ error: "User not found" });
       }
       res.json({
+        isAuthenticated: true,
         user: {
           id: user.id,
           username: user.username,
           email: user.email,
-          phoneNumber: user.phoneNumber
-        },
-        isAuthenticated: true
+          phoneNumber: user.phoneNumber,
+          isAdmin: user.isAdmin || false
+        }
       });
     } catch (error) {
       console.error("Error in /api/me:", error);

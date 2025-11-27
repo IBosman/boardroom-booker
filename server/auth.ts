@@ -13,14 +13,16 @@ type User = {
   email: string;
   phoneNumber: string;
   password: string;
+  isAdmin?: boolean;
 };
 
 // User type for JWT and responses
-type UserPayload = {
+export type UserPayload = {
   id: string;
   username: string;
   email: string;
   phoneNumber: string;
+  isAdmin?: boolean;
   // JWT standard claims (optional)
   iat?: number; // Issued At
   exp?: number; // Expiration Time
@@ -38,7 +40,12 @@ export type LoginInput = z.infer<typeof loginSchema>;
 // Generate JWT token
 export function generateToken(user: UserPayload): string {
   return jwt.sign(
-    { id: user.id, username: user.username },
+    { 
+      id: user.id, 
+      username: user.username,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: user.username.toLowerCase() === 'admin'
+    },
     JWT_SECRET,
     { expiresIn: TOKEN_EXPIRY }
   );
@@ -147,7 +154,8 @@ function initializeAdminUser() {
         username: adminUsername,
         email: 'admin@example.com',
         phoneNumber: '+1234567890',
-        password: adminPassword // In production, this should be hashed
+        password: adminPassword, // In production, this should be hashed
+        isAdmin: true
       };
       
       users.push(newUser);
@@ -175,7 +183,11 @@ export const userService = {
     const user = userService.findByUsername(username);
     if (!user) return undefined;
     const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: username.toLowerCase() === 'admin'
+    };
   },
 
   // Create new user
@@ -219,9 +231,11 @@ export const userService = {
   validateCredentials: (username: string, password: string): UserPayload | null => {
     const user = userService.findByUsername(username);
     if (!user || user.password !== password) return null;
-    
-    // Return user without password
     const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      // Set isAdmin to true if username is 'admin'
+      isAdmin: username.toLowerCase() === 'admin'
+    };
   }
 };

@@ -23,8 +23,8 @@ interface BookingsTableProps {
 export default function BookingsTable({ bookings, onEdit, onDelete }: BookingsTableProps) {
   const { user: currentUser, isAdmin } = useAuth();
   
-  const canEditBooking = (bookingUser: string) => {
-    return isAdmin || currentUser?.username === bookingUser;
+  const canEditBooking = (bookingEmail: string) => {
+    return isAdmin || currentUser?.email === bookingEmail;
   };
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('en-US', { 
@@ -94,7 +94,7 @@ export default function BookingsTable({ bookings, onEdit, onDelete }: BookingsTa
               </TableCell>
               <TableCell className="text-muted-foreground">{booking.room}</TableCell>
               <TableCell className="text-right">
-                {canEditBooking(booking.user) && (
+                {canEditBooking(booking.email) && (
                   <div className="flex justify-end gap-1">
                     <Button
                       size="icon"
