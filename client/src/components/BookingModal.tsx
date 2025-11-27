@@ -365,8 +365,9 @@ export default function BookingModal({
                   <button
                     id="start-time"
                     type="button"
-                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm bg-muted cursor-not-allowed opacity-70"
                     data-testid="input-start-time"
+                    disabled
                   >
                     {formatDisplayTime(startTime)}
                   </button>
@@ -424,8 +425,9 @@ export default function BookingModal({
                   <button
                     id="end-time"
                     type="button"
-                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="mt-1 w-full border border-input rounded-md px-3 py-2 text-left text-sm bg-muted cursor-not-allowed opacity-70"
                     data-testid="input-end-time"
+                    disabled
                   >
                     {formatDisplayTime(endTime)}
                   </button>

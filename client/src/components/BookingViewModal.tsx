@@ -228,7 +228,7 @@ export default function BookingViewModal({
                                 <div className="text-xs text-gray-500">Room: {slot.room}</div>
                               </>
                             ) : (
-                              <div className="text-green-600">{slot.room}</div>
+                              <div className="text-green-600">{slot.room} available</div>
                             )}
                           </div>
                         ))}
