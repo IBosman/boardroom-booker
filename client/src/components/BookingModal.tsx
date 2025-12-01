@@ -30,6 +30,7 @@ interface BookingModalProps {
   defaultDate?: Date | null;
   defaultStartTime?: string;
   defaultEndTime?: string;
+  defaultRoom?: string | null;
 }
 
 export default function BookingModal({ 
@@ -41,7 +42,8 @@ export default function BookingModal({
   setError, 
   defaultDate = null, 
   defaultStartTime, 
-  defaultEndTime 
+  defaultEndTime,
+  defaultRoom = null
 }: BookingModalProps) {
   const { user: currentUser } = useAuth();
   const [date, setDate] = useState<Date | undefined>(
@@ -91,7 +93,14 @@ export default function BookingModal({
   }, [defaultStartTime, defaultEndTime]);
   // Track if user has changed end time after modal opens
   const [isEndTimeDirty, setIsEndTimeDirty] = useState(false);
-  const [room, setRoom] = useState(booking?.room || 'room-1');
+  const [room, setRoom] = useState(booking?.room || defaultRoom || 'room-1');
+  
+  // Update room when defaultRoom changes
+  useEffect(() => {
+    if (!booking && defaultRoom) {
+      setRoom(defaultRoom);
+    }
+  }, [defaultRoom, booking]);
   const [startClockOpen, setStartClockOpen] = useState(false);
   const [endClockOpen, setEndClockOpen] = useState(false);
 

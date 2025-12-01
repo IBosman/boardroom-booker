@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{start: string, end: string} | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -174,9 +175,10 @@ export default function Dashboard() {
   const handleViewModalClose = () => {
     setIsViewModalOpen(false);
     setSelectedTimeSlot(null);
+    setSelectedRoom(null);
   };
   
-  const handleProceedToBooking = (slot: {start: string, end: string}) => {
+  const handleProceedToBooking = (slot: {start: string, end: string, room?: string}) => {
     // Create new date objects to avoid reference issues
     const startDate = new Date(slot.start);
     const endDate = new Date(slot.end);
@@ -200,6 +202,11 @@ export default function Dashboard() {
       end: endDate.toISOString()
     });
     
+    // Store the selected room if provided
+    if (slot.room) {
+      setSelectedRoom(slot.room);
+    }
+    
     setSelectedBooking(null); // Ensure we're in create mode
     setIsViewModalOpen(false);
     setIsAddModalOpen(true);
@@ -208,6 +215,7 @@ export default function Dashboard() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setIsAddModalOpen(false);
+    setSelectedRoom(null);
     fetchBookings(); // Refresh bookings after closing modal
   };
 
@@ -517,6 +525,7 @@ const handleUpdateBooking = async (bookingData: any) => {
           defaultDate={pendingDate}
           defaultStartTime={selectedTimeSlot?.start}
           defaultEndTime={selectedTimeSlot?.end}
+          defaultRoom={selectedRoom}
           error={modalError}
           setError={setModalError}
         />

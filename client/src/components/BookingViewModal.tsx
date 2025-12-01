@@ -19,7 +19,7 @@ interface TimeSlot {
 interface BookingViewModalProps {
   open: boolean;
   onClose: () => void;
-  onAddBooking: (slot: { start: string; end: string }) => void;
+  onAddBooking: (slot: { start: string; end: string; room?: string }) => void;
   date: Date;
   bookings: Array<{
     startTime: string;
@@ -132,18 +132,20 @@ export default function BookingViewModal({
     
     // Log for debugging
     console.log('Booking slot:', {
-      original: { start: slot.start, end: slot.end },
+      original: { start: slot.start, end: slot.end, room: slot.room },
       processed: { 
         start: start.toISOString(), 
         end: end.toISOString(),
         localStart: start.toString(),
-        localEnd: end.toString()
+        localEnd: end.toString(),
+        room: slot.room
       }
     });
 
     onAddBooking({
       start: start.toISOString(),
-      end: end.toISOString()
+      end: end.toISOString(),
+      room: slot.room
     });
   };
 
