@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "user": "admin",
+    "email": "admin@example.com",
+    "phone": "+1234567890",
+    "startTime": "2025-12-24T09:00:00.000Z",
+    "endTime": "2025-12-24T10:00:00.000Z",
+    "room": "room-1",
+    "id": "aa988f4a-1671-408d-af17-04d13c11b2ce",
+    "createdAt": "2025-12-01T08:47:00.350Z"
+  }
+]

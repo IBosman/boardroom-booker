@@ -128,24 +128,8 @@ export function Login() {
                 Sign up
               </Link>
             </div>
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
           </CardFooter>
         </form>
-        <p className="px-8 pb-6 text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <a href="#" className="underline underline-offset-4 hover:text-primary">
-            Sign up
-          </a>
-        </p>
       </Card>
     </div>
   );
